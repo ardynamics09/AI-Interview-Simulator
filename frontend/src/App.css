@@ -1,0 +1,1626 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+
+  background:
+    radial-gradient(circle at top left,
+      rgba(138, 43, 226, 0.35),
+      transparent 35%),
+
+    radial-gradient(circle at bottom right,
+      rgba(0, 140, 255, 0.35),
+      transparent 35%),
+
+    linear-gradient(
+      135deg,
+      #050816,
+      #0b1023,
+      #111827
+    );
+
+  min-height: 100vh;
+}
+.page {
+  min-height: 100vh;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  padding: 20px;
+}
+
+.card {
+  width: 500px;
+
+  background: rgba(255, 255, 255, 0.08);
+
+  backdrop-filter: blur(18px);
+
+  -webkit-backdrop-filter: blur(18px);
+
+  border: 1px solid rgba(255,255,255,0.15);
+
+  padding: 40px;
+
+  border-radius: 24px;
+
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.3),
+    0 0 30px rgba(88, 101, 242, 0.15);
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 20px;
+
+  text-align: center;
+}
+
+.card h1 {
+  color: white;
+  margin: 0;
+  font-size: 2rem;
+}
+
+.subtitle {
+  color: #cbd5e1;
+}
+
+.card select {
+  width: 100%;
+
+  padding: 14px;
+
+  border-radius: 12px;
+
+  border: 1px solid rgba(255,255,255,0.2);
+
+  background: rgba(255,255,255,0.08);
+
+  color: white;
+
+  font-size: 15px;
+  
+}
+
+.resume-section {
+  text-align: left;
+  color: white;
+}
+
+.resume-section h3 {
+  margin-bottom: 10px;
+}
+
+.resume-section label {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.resume-section input[type="file"] {
+  width: 100%;
+}
+
+.start-btn {
+  padding: 14px;
+
+  border: none;
+
+  border-radius: 12px;
+
+  background: linear-gradient(
+    90deg,
+    #7c3aed,
+    #2563eb
+  );
+
+  color: white;
+
+  font-size: 16px;
+
+  font-weight: bold;
+
+  cursor: pointer;
+
+  transition: 0.3s;
+}
+
+.start-btn:hover {
+  transform: translateY(-2px);
+}
+
+.error {
+  color: red;
+  font-weight: bold;
+}
+
+.card select option {
+  background: #111827;
+  color: white;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 12px;
+
+  background: rgba(255,255,255,0.1);
+
+  border-radius: 20px;
+
+  overflow: hidden;
+}
+
+.progress-fill {
+  width: 10%;
+
+  height: 100%;
+
+  background: linear-gradient(
+    90deg,
+    #7c3aed,
+    #2563eb
+  );
+}
+
+textarea {
+  width: 100%;
+
+  padding: 15px;
+
+  border-radius: 12px;
+
+  border: 1px solid rgba(255,255,255,0.2);
+
+  background: rgba(255,255,255,0.08);
+
+  color: white;
+
+  resize: none;
+
+  font-size: 15px;
+}
+
+textarea::placeholder {
+  color: #cbd5e1;
+}
+
+/* =======================================================
+              AI LOADING SCREEN - PART 1
+   ======================================================= */
+
+.loading-page{
+    position:relative;
+
+    min-height:100vh;
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    overflow:hidden;
+
+    padding:40px 20px;
+}
+
+.loading-page *{
+    box-sizing:border-box;
+}
+
+.loading-card{
+
+    position:relative;
+
+    width:min(900px,100%);
+
+    padding:45px;
+
+    border-radius:28px;
+
+    overflow:hidden;
+
+    background:rgba(255,255,255,0.08);
+
+    backdrop-filter:blur(22px);
+
+    -webkit-backdrop-filter:blur(22px);
+
+    border:1px solid rgba(255,255,255,.12);
+
+    box-shadow:
+        0 20px 60px rgba(0,0,0,.35),
+        0 0 70px rgba(90,90,255,.12);
+
+    z-index:2;
+}
+
+.loading-card::before{
+
+    content:"";
+
+    position:absolute;
+
+    inset:0;
+
+    background:linear-gradient(
+        130deg,
+        rgba(255,255,255,.06),
+        transparent 35%,
+        rgba(255,255,255,.02)
+    );
+
+    pointer-events:none;
+}
+
+.badge{
+
+    width:max-content;
+
+    margin:auto;
+
+    margin-bottom:18px;
+
+    padding:8px 18px;
+
+    border-radius:100px;
+
+    color:#8ecbff;
+
+    font-size:13px;
+
+    letter-spacing:1px;
+
+    text-transform:uppercase;
+
+    border:1px solid rgba(142,203,255,.25);
+
+    background:rgba(0,140,255,.08);
+
+    animation:badgeGlow 2.5s infinite;
+}
+
+.title{
+
+    margin:0;
+
+    text-align:center;
+
+    color:#ffffff;
+
+    font-size:2.6rem;
+
+    font-weight:700;
+
+    letter-spacing:.5px;
+}
+
+.status-title{
+
+    color:#ffffff;
+
+    margin:0;
+
+    margin-top:8px;
+
+    font-size:1.9rem;
+
+    font-weight:700;
+}
+
+.subtitle{
+
+    margin-top:14px;
+
+    margin-bottom:10px;
+
+    color:#b8c7e8;
+
+    text-align:center;
+
+    line-height:1.7;
+
+    font-size:15px;
+}
+
+.status-section{
+
+    text-align:center;
+
+    margin-top:25px;
+}
+
+.status-description{
+
+    margin:14px auto 0;
+
+    max-width:620px;
+
+    color:#b5c2dd;
+
+    line-height:1.8;
+
+    font-size:15px;
+}
+
+.background-grid{
+
+    position:absolute;
+
+    inset:0;
+
+    background-image:
+
+        linear-gradient(
+            rgba(255,255,255,.03) 1px,
+            transparent 1px
+        ),
+
+        linear-gradient(
+            90deg,
+            rgba(255,255,255,.03) 1px,
+            transparent 1px
+        );
+
+    background-size:45px 45px;
+
+    opacity:.45;
+
+    animation:gridMove 18s linear infinite;
+}
+
+.background-gradient{
+
+    position:absolute;
+
+    border-radius:50%;
+
+    filter:blur(90px);
+
+    opacity:.55;
+
+    animation:floatBlob 12s ease-in-out infinite;
+}
+
+.background-gradient.one{
+
+    width:420px;
+
+    height:420px;
+
+    background:#7c3aed;
+
+    top:-150px;
+
+    left:-120px;
+}
+
+.background-gradient.two{
+
+    width:380px;
+
+    height:380px;
+
+    background:#2563eb;
+
+    right:-120px;
+
+    bottom:-100px;
+
+    animation-delay:2s;
+}
+
+.background-gradient.three{
+
+    width:260px;
+
+    height:260px;
+
+    background:#00d4ff;
+
+    left:45%;
+
+    top:55%;
+
+    opacity:.28;
+
+    animation-delay:5s;
+}
+
+/* =======================================================
+              AI LOADING SCREEN - PART 2
+   ======================================================= */
+
+.particles{
+
+    position:absolute;
+
+    inset:0;
+
+    overflow:hidden;
+
+    pointer-events:none;
+
+    z-index:1;
+}
+
+.particle{
+
+    position:absolute;
+
+    border-radius:50%;
+
+    background:rgba(255,255,255,.75);
+
+    box-shadow:
+        0 0 12px rgba(255,255,255,.65);
+
+    animation:
+        particleFloat linear infinite;
+}
+
+.orb-wrapper{
+
+    position:relative;
+
+    width:210px;
+
+    height:210px;
+
+    margin:40px auto;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+}
+
+.ai-orb{
+
+    position:relative;
+
+    width:125px;
+
+    height:125px;
+
+    border-radius:50%;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    background:
+        radial-gradient(circle at 30% 30%,
+            #9f7aea,
+            #2563eb 60%,
+            #111827);
+
+    box-shadow:
+        0 0 30px rgba(124,58,237,.45),
+        0 0 70px rgba(37,99,235,.35),
+        inset 0 0 30px rgba(255,255,255,.12);
+
+    animation:
+        orbFloat 4s ease-in-out infinite,
+        orbRotate 14s linear infinite;
+
+    z-index:5;
+}
+
+.orb-glow{
+
+    position:absolute;
+
+    inset:-18px;
+
+    border-radius:50%;
+
+    background:
+        radial-gradient(
+            circle,
+            rgba(124,58,237,.35),
+            rgba(37,99,235,.18),
+            transparent 72%
+        );
+
+    filter:blur(12px);
+
+    animation:
+        glowPulse 2.8s ease-in-out infinite;
+}
+
+.robot-icon{
+
+    position:relative;
+
+    font-size:58px;
+
+    z-index:6;
+
+    user-select:none;
+
+    animation:
+        robotBounce 3s ease-in-out infinite;
+}
+
+.pulse-ring{
+
+    position:absolute;
+
+    width:150px;
+
+    height:150px;
+
+    border-radius:50%;
+
+    border:2px solid
+        rgba(124,58,237,.35);
+
+    animation:
+        pulseRing 3s linear infinite;
+}
+
+.delay{
+
+    animation-delay:1s;
+}
+
+.delay-two{
+
+    animation-delay:2s;
+}
+
+.progress-wrapper{
+
+    margin-top:25px;
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:12px;
+}
+
+.progress-header{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    color:#ffffff;
+
+    font-size:15px;
+
+    font-weight:600;
+}
+
+.progress-container{
+
+    width:100%;
+
+    height:15px;
+
+    overflow:hidden;
+
+    border-radius:999px;
+
+    background:
+        rgba(255,255,255,.08);
+
+    border:1px solid
+        rgba(255,255,255,.08);
+
+    position:relative;
+}
+
+.progress-fill{
+
+    position:relative;
+
+    height:100%;
+
+    border-radius:999px;
+
+    background:
+        linear-gradient(
+            90deg,
+            #7c3aed,
+            #2563eb,
+            #00d4ff
+        );
+
+    transition:
+        width .35s ease;
+}
+
+.progress-shine{
+
+    position:absolute;
+
+    top:0;
+
+    left:-40%;
+
+    width:35%;
+
+    height:100%;
+
+    background:
+        rgba(255,255,255,.45);
+
+    transform:skewX(-25deg);
+
+    animation:
+        progressShine 2.2s linear infinite;
+}
+
+.progress-footer{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    color:#b9c6df;
+
+    font-size:13px;
+}
+
+/* =======================================================
+              AI LOADING SCREEN - PART 3
+   ======================================================= */
+
+.info-grid{
+
+    display:grid;
+
+    grid-template-columns:repeat(2,1fr);
+
+    gap:18px;
+
+    margin-top:28px;
+}
+
+.info-card{
+
+    background:rgba(255,255,255,.06);
+
+    border:1px solid rgba(255,255,255,.10);
+
+    border-radius:18px;
+
+    padding:18px;
+
+    backdrop-filter:blur(10px);
+
+    transition:.35s;
+}
+
+.info-card:hover{
+
+    transform:translateY(-4px);
+
+    border-color:rgba(124,58,237,.35);
+
+    box-shadow:
+        0 12px 25px rgba(0,0,0,.22);
+}
+
+.info-label{
+
+    display:block;
+
+    color:#94a3b8;
+
+    font-size:13px;
+
+    margin-bottom:8px;
+
+    letter-spacing:.5px;
+
+    text-transform:uppercase;
+}
+
+.info-value{
+
+    margin:0;
+
+    color:#ffffff;
+
+    font-size:1.4rem;
+
+    font-weight:700;
+}
+
+.info-value.success{
+
+    color:#4ade80;
+}
+
+.quote-container{
+
+    margin-top:28px;
+
+    padding:22px;
+
+    border-radius:18px;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(124,58,237,.10),
+            rgba(37,99,235,.10)
+        );
+
+    border:1px solid rgba(255,255,255,.08);
+
+    display:flex;
+
+    align-items:center;
+
+    gap:18px;
+}
+
+.quote-icon{
+
+    width:54px;
+
+    height:54px;
+
+    border-radius:50%;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    font-size:26px;
+
+    flex-shrink:0;
+
+    background:
+        linear-gradient(
+            135deg,
+            #7c3aed,
+            #2563eb
+        );
+}
+
+.quote-text{
+
+    margin:0;
+
+    color:#dbeafe;
+
+    font-size:15px;
+
+    line-height:1.8;
+
+    font-style:italic;
+}
+
+.steps-container{
+
+    margin-top:32px;
+}
+
+.steps-header{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    margin-bottom:18px;
+
+    color:#ffffff;
+
+    font-weight:600;
+}
+
+.steps-list{
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:14px;
+}
+
+.step-item{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    padding:15px 18px;
+
+    border-radius:16px;
+
+    background:rgba(255,255,255,.05);
+
+    border:1px solid rgba(255,255,255,.08);
+
+    transition:.35s;
+}
+
+.step-item:hover{
+
+    transform:translateX(4px);
+
+    border-color:rgba(124,58,237,.30);
+}
+
+.step-item.completed{
+
+    background:
+        rgba(34,197,94,.10);
+
+    border-color:
+        rgba(34,197,94,.35);
+}
+
+.step-item.active{
+
+    background:
+        rgba(37,99,235,.12);
+
+    border-color:
+        rgba(37,99,235,.35);
+
+    box-shadow:
+        0 0 25px rgba(37,99,235,.18);
+}
+
+.step-left{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:14px;
+}
+
+.step-circle{
+
+    width:34px;
+
+    height:34px;
+
+    border-radius:50%;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    font-size:14px;
+
+    font-weight:700;
+
+    color:#ffffff;
+
+    background:
+        linear-gradient(
+            135deg,
+            #7c3aed,
+            #2563eb
+        );
+
+    flex-shrink:0;
+}
+
+.step-name{
+
+    color:#ffffff;
+
+    font-size:15px;
+
+    font-weight:500;
+}
+
+.step-status{
+
+    color:#94a3b8;
+
+    font-size:13px;
+
+    font-weight:600;
+}
+
+.loader-dot{
+
+    width:10px;
+
+    height:10px;
+
+    border-radius:50%;
+
+    background:#ffffff;
+
+    animation:loaderBlink 1s ease-in-out infinite;
+}
+
+.candidate-section{
+
+    margin-top:34px;
+}
+
+.section-title{
+
+    color:#ffffff;
+
+    font-size:1.15rem;
+
+    font-weight:700;
+
+    margin-bottom:18px;
+}
+
+.candidate-grid{
+
+    display:grid;
+
+    grid-template-columns:repeat(2,1fr);
+
+    gap:16px;
+}
+
+.candidate-card{
+
+    background:rgba(255,255,255,.05);
+
+    border:1px solid rgba(255,255,255,.08);
+
+    border-radius:16px;
+
+    padding:18px;
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:8px;
+
+    transition:.35s;
+}
+
+.candidate-card:hover{
+
+    transform:translateY(-4px);
+
+    border-color:rgba(124,58,237,.30);
+}
+
+.candidate-label{
+
+    color:#94a3b8;
+
+    font-size:12px;
+
+    text-transform:uppercase;
+
+    letter-spacing:.6px;
+}
+
+.candidate-value{
+
+    color:#ffffff;
+
+    font-size:15px;
+
+    font-weight:600;
+
+    word-break:break-word;
+}
+/* =======================================================
+              AI LOADING SCREEN - PART 4
+   ======================================================= */
+
+.interview-type-card{
+
+    margin-top:30px;
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    padding:18px 22px;
+
+    border-radius:18px;
+
+    background:rgba(255,255,255,.05);
+
+    border:1px solid rgba(255,255,255,.08);
+}
+
+.type-title{
+
+    color:#cbd5e1;
+
+    font-size:15px;
+
+    font-weight:600;
+}
+
+.type-badge{
+
+    padding:10px 18px;
+
+    border-radius:999px;
+
+    background:
+        linear-gradient(
+            90deg,
+            #7c3aed,
+            #2563eb
+        );
+
+    color:#ffffff;
+
+    font-size:13px;
+
+    font-weight:700;
+
+    letter-spacing:.4px;
+
+    box-shadow:
+        0 6px 18px rgba(37,99,235,.25);
+}
+
+.tips-section{
+
+    margin-top:32px;
+
+    padding:24px;
+
+    border-radius:20px;
+
+    background:
+        rgba(255,255,255,.05);
+
+    border:1px solid rgba(255,255,255,.08);
+}
+
+.tips-title{
+
+    color:#ffffff;
+
+    font-size:1.1rem;
+
+    font-weight:700;
+
+    margin-bottom:18px;
+}
+
+.tips-list{
+
+    margin:0;
+
+    padding-left:22px;
+
+    color:#dbeafe;
+
+    line-height:1.9;
+}
+
+.tips-list li{
+
+    margin-bottom:10px;
+}
+
+.error-box{
+
+    margin-top:28px;
+
+    display:flex;
+
+    align-items:flex-start;
+
+    gap:16px;
+
+    padding:20px;
+
+    border-radius:18px;
+
+    background:
+        rgba(239,68,68,.10);
+
+    border:1px solid
+        rgba(239,68,68,.35);
+}
+
+.error-icon{
+
+    font-size:28px;
+
+    flex-shrink:0;
+}
+
+.error-content h3{
+
+    margin:0;
+
+    color:#ffffff;
+
+    font-size:18px;
+}
+
+.error-content p{
+
+    margin-top:8px;
+
+    color:#fecaca;
+
+    line-height:1.7;
+}
+
+.button-group{
+
+    display:flex;
+
+    justify-content:center;
+
+    gap:18px;
+
+    flex-wrap:wrap;
+
+    margin-top:32px;
+}
+
+.retry-btn,
+.home-btn{
+
+    border:none;
+
+    outline:none;
+
+    cursor:pointer;
+
+    padding:14px 28px;
+
+    border-radius:14px;
+
+    color:#ffffff;
+
+    font-size:15px;
+
+    font-weight:700;
+
+    transition:
+        .3s ease;
+}
+
+.retry-btn{
+
+    background:
+        linear-gradient(
+            90deg,
+            #7c3aed,
+            #2563eb
+        );
+}
+
+.retry-btn:hover{
+
+    transform:
+        translateY(-3px);
+
+    box-shadow:
+        0 12px 28px rgba(37,99,235,.30);
+}
+
+.home-btn{
+
+    background:
+        rgba(255,255,255,.08);
+
+    border:1px solid
+        rgba(255,255,255,.12);
+}
+
+.home-btn:hover{
+
+    background:
+        rgba(255,255,255,.14);
+
+    transform:
+        translateY(-3px);
+}
+
+.footer-section{
+
+    margin-top:38px;
+
+    text-align:center;
+}
+
+.footer-divider{
+
+    width:100%;
+
+    height:1px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(255,255,255,.20),
+            transparent
+        );
+
+    margin-bottom:18px;
+}
+
+.footer-text{
+
+    margin:0;
+
+    color:#94a3b8;
+
+    font-size:14px;
+
+    letter-spacing:.5px;
+
+    line-height:1.7;
+}
+
+/* =======================================================
+              AI LOADING SCREEN - PART 5 (FINAL)
+   ======================================================= */
+
+@keyframes badgeGlow{
+
+    0%,100%{
+        box-shadow:0 0 8px rgba(37,99,235,.20);
+    }
+
+    50%{
+        box-shadow:
+            0 0 25px rgba(37,99,235,.45);
+    }
+
+}
+
+@keyframes orbFloat{
+
+    0%,100%{
+        transform:translateY(0px);
+    }
+
+    50%{
+        transform:translateY(-12px);
+    }
+
+}
+
+@keyframes orbRotate{
+
+    from{
+        rotate:0deg;
+    }
+
+    to{
+        rotate:360deg;
+    }
+
+}
+
+@keyframes glowPulse{
+
+    0%,100%{
+        opacity:.55;
+        scale:1;
+    }
+
+    50%{
+        opacity:1;
+        scale:1.15;
+    }
+
+}
+
+@keyframes robotBounce{
+
+    0%,100%{
+        transform:translateY(0);
+    }
+
+    50%{
+        transform:translateY(-6px);
+    }
+
+}
+
+@keyframes pulseRing{
+
+    0%{
+        transform:scale(.8);
+        opacity:.7;
+    }
+
+    100%{
+        transform:scale(1.8);
+        opacity:0;
+    }
+
+}
+
+@keyframes particleFloat{
+
+    0%{
+        transform:
+            translateY(0)
+            scale(1);
+    }
+
+    50%{
+        transform:
+            translateY(-35px)
+            scale(1.25);
+    }
+
+    100%{
+        transform:
+            translateY(-70px)
+            scale(.9);
+        opacity:0;
+    }
+
+}
+
+@keyframes progressShine{
+
+    from{
+        left:-35%;
+    }
+
+    to{
+        left:130%;
+    }
+
+}
+
+@keyframes loaderBlink{
+
+    0%,100%{
+        opacity:.35;
+    }
+
+    50%{
+        opacity:1;
+    }
+
+}
+
+@keyframes gridMove{
+
+    from{
+        transform:translate(0,0);
+    }
+
+    to{
+        transform:translate(45px,45px);
+    }
+
+}
+
+@keyframes floatBlob{
+
+    0%,100%{
+
+        transform:
+            translate(0,0)
+            scale(1);
+
+    }
+
+    50%{
+
+        transform:
+            translate(35px,-30px)
+            scale(1.12);
+
+    }
+
+}
+
+/* ===========================
+        Scrollbar
+=========================== */
+
+::-webkit-scrollbar{
+
+    width:10px;
+
+}
+
+::-webkit-scrollbar-track{
+
+    background:#0b1023;
+
+}
+
+::-webkit-scrollbar-thumb{
+
+    background:#4f46e5;
+
+    border-radius:20px;
+
+}
+
+::-webkit-scrollbar-thumb:hover{
+
+    background:#6366f1;
+
+}
+
+/* ===========================
+      Responsive
+=========================== */
+
+@media(max-width:900px){
+
+.loading-card{
+
+    padding:35px;
+
+}
+
+.title{
+
+    font-size:2.2rem;
+
+}
+
+.status-title{
+
+    font-size:1.6rem;
+
+}
+
+}
+
+@media(max-width:700px){
+
+.loading-card{
+
+    padding:28px;
+
+}
+
+.info-grid{
+
+    grid-template-columns:1fr;
+
+}
+
+.candidate-grid{
+
+    grid-template-columns:1fr;
+
+}
+
+.interview-type-card{
+
+    flex-direction:column;
+
+    gap:16px;
+
+    text-align:center;
+
+}
+
+.quote-container{
+
+    flex-direction:column;
+
+    text-align:center;
+
+}
+
+.button-group{
+
+    flex-direction:column;
+
+}
+
+.retry-btn,
+.home-btn{
+
+    width:100%;
+
+}
+
+.orb-wrapper{
+
+    width:180px;
+
+    height:180px;
+
+}
+
+.ai-orb{
+
+    width:110px;
+
+    height:110px;
+
+}
+
+.robot-icon{
+
+    font-size:48px;
+
+}
+
+}
+
+@media(max-width:500px){
+
+.loading-page{
+
+    padding:18px;
+
+}
+
+.loading-card{
+
+    padding:22px;
+
+    border-radius:20px;
+
+}
+
+.title{
+
+    font-size:1.8rem;
+
+}
+
+.status-title{
+
+    font-size:1.35rem;
+
+}
+
+.subtitle,
+.status-description{
+
+    font-size:14px;
+
+}
+
+.step-item{
+
+    flex-direction:column;
+
+    align-items:flex-start;
+
+    gap:12px;
+
+}
+
+.step-status{
+
+    margin-left:48px;
+
+}
+
+.footer-text{
+
+    font-size:12px;
+
+}
+
+}
