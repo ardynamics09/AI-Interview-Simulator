@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 
@@ -23,6 +23,9 @@ function Interview() {
   const [timeLeft, setTimeLeft] = useState(180);
   const [warningCount, setWarningCount] = useState(0);
   const [roundTransitionModal, setRoundTransitionModal] = useState(null);
+
+  // Total elapsed interview time tracking
+  const interviewStartTime = useRef(Date.now());
 
   // Adaptive Follow-Up State
   const isAdaptiveMode =
@@ -92,6 +95,7 @@ function Interview() {
           setWarningCount(1);
         } else {
           alert("Interview auto submitted due to multiple tab switches.");
+          const totalDurationMin = Math.max(1, Math.round((Date.now() - interviewStartTime.current) / 60000));
           navigate("/result", {
             state: {
               answers,
@@ -99,7 +103,10 @@ function Interview() {
               branch,
               year,
               role,
-              interviewType
+              interviewType,
+              skills,
+              projects,
+              durationMinutes: totalDurationMin
             }
           });
         }
@@ -108,7 +115,7 @@ function Interview() {
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [warningCount, answers, navigate, name, branch, year, role, interviewType]);
+  }, [warningCount, answers, navigate, name, branch, year, role, interviewType, skills, projects]);
 
   // Reset timer on question change
   useEffect(() => {
@@ -155,7 +162,7 @@ function Interview() {
   }, [timeLeft, isFollowUpActive]);
 
   // Client-side fallback generator for follow-ups if backend is offline
-  const generateLocalFollowUp = (userAns, qText) => {
+  const generateLocalFollowUp = (userAns) => {
     const ansLower = userAns.toLowerCase();
     if (ansLower.includes("random forest")) {
       return "Interesting. Why did you choose Random Forest instead of Linear Regression or XGBoost for this problem?";
@@ -217,13 +224,13 @@ function Interview() {
         if (response.data && response.data.hasFollowUp && response.data.followUpQuestion) {
           setFollowUpQuestion(response.data.followUpQuestion);
           setIsFollowUpActive(true);
-          setTimeLeft(120); // 2 minutes for follow-up
+          setTimeLeft(120);
           setIsAnalyzingResponse(false);
           return;
         }
       } catch (err) {
         console.warn("Backend follow-up offline, checking local rules...", err);
-        const localFollowUp = generateLocalFollowUp(answer.trim(), questions[currentQuestion]);
+        const localFollowUp = generateLocalFollowUp(answer.trim());
         if (localFollowUp) {
           setFollowUpQuestion(localFollowUp);
           setIsFollowUpActive(true);
@@ -236,7 +243,6 @@ function Interview() {
       setIsAnalyzingResponse(false);
     }
 
-    // No follow-up needed or not adaptive mode
     finalizeQuestionStep(answer, null);
   };
 
@@ -298,6 +304,7 @@ function Interview() {
       setCurrentQuestion(nextQIndex);
       setAnswer("");
     } else {
+      const totalDurationMin = Math.max(1, Math.round((Date.now() - interviewStartTime.current) / 60000));
       navigate("/result", {
         state: {
           answers: updatedAnswers,
@@ -305,7 +312,10 @@ function Interview() {
           branch,
           year,
           role,
-          interviewType
+          interviewType,
+          skills,
+          projects,
+          durationMinutes: totalDurationMin
         }
       });
     }
@@ -623,7 +633,7 @@ function Interview() {
                   ? "Evaluating..."
                   : currentQuestion === totalQuestions - 1
                   ? "Finish Interview 🏁"
-                  : "Submit Answer &rarr;"}
+                  : "Submit Answer"}
               </button>
 
               <button
@@ -651,7 +661,7 @@ function Interview() {
                 onClick={() => submitFollowUp(followUpAnswer.trim() || "No follow-up response provided")}
                 style={{ flex: 3, padding: "12px", fontSize: "16px", background: "linear-gradient(90deg, #ff9800, #f57c00)" }}
               >
-                Submit Follow-Up & Next &rarr;
+                Submit Follow-Up & Next
               </button>
 
               <button
