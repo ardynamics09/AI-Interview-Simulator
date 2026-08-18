@@ -22,39 +22,33 @@ body {
 }
 .page {
   min-height: 100vh;
-
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  justify-content: flex-start;
   align-items: center;
-
-  padding: 20px;
+  padding: 32px 16px 20px 16px;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .card {
-  width: 500px;
-
+  width: 100%;
+  max-width: 580px;
   background: rgba(255, 255, 255, 0.08);
-
   backdrop-filter: blur(18px);
-
   -webkit-backdrop-filter: blur(18px);
-
-  border: 1px solid rgba(255,255,255,0.15);
-
-  padding: 40px;
-
-  border-radius: 24px;
-
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 36px 28px;
+  border-radius: 22px;
   box-shadow:
     0 8px 32px rgba(0,0,0,0.3),
     0 0 30px rgba(88, 101, 242, 0.15);
-
   display: flex;
   flex-direction: column;
-
-  gap: 20px;
-
+  gap: 18px;
   text-align: center;
+  box-sizing: border-box;
+  margin: auto 0;
 }
 
 .card h1 {
@@ -1623,4 +1617,174 @@ textarea::placeholder {
 
 }
 
+}
+
+/* =========================================
+   APPLICATION FOOTER STYLES
+========================================= */
+.app-footer {
+  width: 100%;
+  max-width: 800px;
+  margin: 30px auto 10px auto;
+  padding: 20px 24px 14px 24px;
+  background: rgba(13, 17, 23, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), 0 0 20px rgba(79, 195, 247, 0.05);
+  box-sizing: border-box;
+}
+
+.footer-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.footer-brand {
+  text-align: left;
+}
+
+.footer-title {
+  margin: 0;
+  font-size: 15px;
+  color: #e6edf3;
+  font-weight: 500;
+}
+
+.creator-name {
+  color: #58a6ff;
+  font-weight: 700;
+  text-shadow: 0 0 12px rgba(88, 166, 255, 0.4);
+  letter-spacing: 0.3px;
+}
+
+.footer-subtitle {
+  margin: 4px 0 0 0;
+  font-size: 12px;
+  color: #8b949e;
+}
+
+.footer-socials {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.social-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.25s ease;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.github-btn {
+  color: #f0f6fc;
+}
+
+.github-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(255, 255, 255, 0.15);
+}
+
+.linkedin-btn {
+  color: #70b5f9;
+}
+
+.linkedin-btn:hover {
+  background: rgba(10, 102, 194, 0.25);
+  border-color: #0a66c2;
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(10, 102, 194, 0.35);
+}
+
+.social-icon {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.social-btn:hover .social-icon {
+  transform: scale(1.15);
+}
+
+.footer-bottom {
+  padding-top: 10px;
+  text-align: center;
+}
+
+.footer-bottom p {
+  margin: 0;
+  font-size: 12px;
+  color: #6e7681;
+}
+
+@media (max-width: 600px) {
+  .page {
+    padding: 16px 12px;
+  }
+
+  .card {
+    padding: 24px 16px;
+    border-radius: 18px;
+    gap: 14px;
+  }
+
+  .card h1 {
+    font-size: 1.45rem;
+    line-height: 1.25;
+  }
+
+  .subtitle {
+    font-size: 13px;
+  }
+
+  .card select,
+  .card input[type="text"],
+  .start-btn {
+    padding: 12px;
+    font-size: 14px;
+  }
+
+  .app-footer {
+    padding: 16px 14px 12px 14px;
+    margin-top: 24px;
+    border-radius: 14px;
+  }
+
+  .footer-content {
+    flex-direction: column;
+    text-align: center;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .footer-brand {
+    text-align: center;
+  }
+
+  .footer-socials {
+    width: 100%;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .social-btn {
+    padding: 8px 14px;
+    font-size: 12px;
+  }
 }
