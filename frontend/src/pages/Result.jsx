@@ -3,27 +3,34 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Footer from "../components/Footer";
 import RadarChart from "../components/RadarChart";
 import { computeInterviewAnalytics } from "../utils/interviewAnalytics";
+import { saveTestResult, getActiveUser } from "../utils/profileStorage";
+import { useEffect, useRef } from "react";
 
 function Result() {
   const location = useLocation();
   const navigate = useNavigate();
 
   const {
+    userId = "",
     answers = [],
+    dsaSubmissions = [],
     name = "Candidate",
     branch = "CSE",
     year = "3rd Year",
     role = "Software Engineer",
-    interviewType = "AI Mock Interview",
+    interviewType = "HR Interview",
     skills = [],
     projects = [],
-    durationMinutes = 18
+    durationMinutes = 18,
+    integrityScore = 100,
+    tabSwitches = 0
   } = location.state || {};
 
   // Compute rich deterministic and ML-extracted analytics
   const analytics = useMemo(() => {
     return computeInterviewAnalytics({
       answers,
+      dsaSubmissions,
       name,
       branch,
       year,
@@ -31,9 +38,32 @@ function Result() {
       interviewType,
       skills,
       projects,
-      durationMinutes
+      durationMinutes,
+      integrityScore,
+      tabSwitches
     });
-  }, [answers, name, branch, year, role, interviewType, skills, projects, durationMinutes]);
+  }, [answers, dsaSubmissions, name, branch, year, role, interviewType, skills, projects, durationMinutes, integrityScore, tabSwitches]);
+
+  
+  const hasSavedRef = useRef(false);
+  const effectiveUserId = userId || getActiveUser() || ((name.toLowerCase().replace(/[^a-z0-9]/g, "") || "candidate") + "_" + (branch.toLowerCase() || "cse"));
+
+  useEffect(() => {
+    if (!hasSavedRef.current && analytics && analytics.overallScore !== undefined) {
+      hasSavedRef.current = true;
+      saveTestResult(effectiveUserId, {
+        ...analytics,
+        name,
+        branch,
+        year,
+        role,
+        interviewType,
+        durationMinutes,
+        integrityScore,
+        tabSwitches
+      });
+    }
+  }, [analytics, effectiveUserId, name, branch, year, role, interviewType, durationMinutes, integrityScore, tabSwitches]);
 
   // Accordion open/close state for Question-by-Question analysis
   const [openQuestionIdx, setOpenQuestionIdx] = useState(0);
@@ -46,16 +76,95 @@ function Result() {
   const getScoreColor = (score) => {
     if (score >= 85) return "#00e676";
     if (score >= 75) return "#2196f3";
-    if (score >= 60) return "#ffb74d";
+    if (score >= 55) return "#ffb74d";
     return "#ff5252";
   };
 
   const scoreColor = getScoreColor(analytics.overallScore);
 
+  const handleDownloadPdf = () => {
+    window.print();
+  };
+
+  const isRoboticsRound = interviewType.toLowerCase().includes("robotics");
+  const isVerilogRound = interviewType.toLowerCase().includes("verilog") || interviewType.toLowerCase().includes("rtl");
+  const isCodingRound = analytics.isDsaRound || isRoboticsRound || isVerilogRound;
+
+  const reportCategoryTitle = isRoboticsRound
+    ? "ROBOTICS SIMULATION & CONTROL REPORT"
+    : (isVerilogRound ? "VERILOG RTL HARDWARE PERFORMANCE REPORT" : (isCodingRound ? "DSA CODING ASSESSMENT REPORT" : "INTERVIEW PERFORMANCE REPORT"));
+
+  const breakdownSectionTitle = isRoboticsRound
+    ? "Robotics Simulation & Control Logic Breakdown"
+    : (isVerilogRound ? "Verilog RTL Synthesis & Verification Breakdown" : "DSA Execution & Code Quality Breakdown");
+
+  const breakdownIcon = isRoboticsRound ? "🤖" : (isVerilogRound ? "⚡" : "💻");
+
+  const radarTitle = isRoboticsRound
+    ? "Robotics Control & Logic Competency Radar"
+    : (isVerilogRound ? "Verilog Hardware & RTL Competency Radar" : (isCodingRound ? "DSA Problem-Solving Competency Radar" : "Skill Competency Profile"));
+
   return (
     <div className="page" style={{ padding: "30px 14px", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center" }}>
       <div style={{ maxWidth: "880px", width: "100%" }}>
         
+        {/* TOP ACTION BAR WITH PDF DOWNLOAD BUTTON */}
+        <div className="no-print" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", flexWrap: "wrap", gap: "10px" }}>
+          <button
+            onClick={() => navigate("/")}
+            style={{
+              background: "transparent",
+              color: "#aaa",
+              border: "1px solid rgba(255, 255, 255, 0.15)",
+              padding: "8px 16px",
+              borderRadius: "8px",
+              cursor: "pointer",
+              fontSize: "13px"
+            }}
+          >
+            ← Back to Home
+          </button>
+
+          <button
+            onClick={() => navigate("/dashboard", { state: { userId: effectiveUserId } })}
+            style={{
+              background: "rgba(33, 150, 243, 0.2)",
+              color: "#64b5f6",
+              border: "1px solid #2196f3",
+              padding: "10px 18px",
+              borderRadius: "8px",
+              cursor: "pointer",
+              fontWeight: "bold",
+              fontSize: "14px",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px"
+            }}
+          >
+            <span>📊</span> Performance Dashboard
+          </button>
+
+          <button
+            onClick={handleDownloadPdf}
+            style={{
+              background: "linear-gradient(90deg, #2196f3, #00e676)",
+              color: "#000",
+              border: "none",
+              padding: "10px 18px",
+              borderRadius: "8px",
+              cursor: "pointer",
+              fontWeight: "bold",
+              fontSize: "14px",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              boxShadow: "0 4px 14px rgba(0, 230, 118, 0.25)"
+            }}
+          >
+            <span>⬇️</span> Download Result (PDF)
+          </button>
+        </div>
+
         {/* ========================================= */}
         {/* 1. HERO: OVERALL INTERVIEW PERFORMANCE    */}
         {/* ========================================= */}
@@ -96,7 +205,7 @@ function Result() {
               fontWeight: "700"
             }}
           >
-            INTERVIEW PERFORMANCE REPORT
+            {reportCategoryTitle}
           </span>
 
           <div style={{ margin: "20px 0 14px 0" }}>
@@ -128,7 +237,7 @@ function Result() {
             <div style={{ height: "10px", borderRadius: "6px", background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
               <div
                 style={{
-                  width: `${analytics.overallScore}%`,
+                  width: `${Math.max(3, analytics.overallScore)}%`,
                   height: "100%",
                   background: `linear-gradient(90deg, #2196f3, ${scoreColor})`,
                   borderRadius: "6px",
@@ -159,9 +268,63 @@ function Result() {
             <span>•</span>
             <span>⏱ <b>{analytics.durationMinutes} min</b></span>
             <span>•</span>
-            <span>📝 <b>{analytics.answeredCount}/{analytics.totalQuestions} Answered</b></span>
+            <span>📝 <b>{analytics.answeredCount}/{analytics.totalQuestions} Completed</b></span>
+            <span>•</span>
+            <span style={{ color: analytics.integrityScore >= 80 ? "#00e676" : "#ff5252", fontWeight: "600" }}>
+              🛡️ Integrity: <b>{analytics.integrityScore}%</b> {analytics.tabSwitches > 0 && `(${analytics.tabSwitches} switches)`}
+            </span>
           </div>
         </div>
+
+        {/* ========================================= */}
+        {/* DSA / VERILOG / ROBOTICS SUMMARY METRICS */}
+        {/* ========================================= */}
+        {analytics.isDsaRound && analytics.dsaSummary && (
+          <div
+            style={{
+              background: "#13171f",
+              borderRadius: "14px",
+              border: "1px solid rgba(0, 230, 118, 0.25)",
+              padding: "24px 20px",
+              marginBottom: "24px",
+              textAlign: "left"
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+              <span style={{ fontSize: "20px" }}>{breakdownIcon}</span>
+              <h2 style={{ fontSize: "19px", margin: 0, color: "#fff", fontWeight: "700" }}>
+                {breakdownSectionTitle}
+              </h2>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "12px" }}>
+              <div style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
+                <span style={{ fontSize: "11px", color: "#888", display: "block" }}>Solved</span>
+                <span style={{ fontSize: "19px", fontWeight: "bold", color: "#00e676" }}>{analytics.dsaSummary.questionsSolved}</span>
+              </div>
+              <div style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
+                <span style={{ fontSize: "11px", color: "#888", display: "block" }}>Test Cases</span>
+                <span style={{ fontSize: "19px", fontWeight: "bold", color: "#2196f3" }}>{analytics.dsaSummary.testCasesPassed}</span>
+              </div>
+              <div style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
+                <span style={{ fontSize: "11px", color: "#888", display: "block" }}>Logic Accuracy</span>
+                <span style={{ fontSize: "19px", fontWeight: "bold", color: getScoreColor(analytics.dsaSummary.logicAccuracy) }}>
+                  {analytics.dsaSummary.logicAccuracy}%
+                </span>
+              </div>
+              <div style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
+                <span style={{ fontSize: "11px", color: "#888", display: "block" }}>Syntax Accuracy</span>
+                <span style={{ fontSize: "19px", fontWeight: "bold", color: getScoreColor(analytics.dsaSummary.syntaxAccuracy) }}>
+                  {analytics.dsaSummary.syntaxAccuracy}%
+                </span>
+              </div>
+              <div style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
+                <span style={{ fontSize: "11px", color: "#888", display: "block" }}>Time Efficiency</span>
+                <span style={{ fontSize: "19px", fontWeight: "bold", color: "#ffb74d" }}>{analytics.dsaSummary.timeEfficiency}%</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ========================================= */}
         {/* 2. SKILL PERFORMANCE — RADAR CHART & SCORES */}
@@ -178,17 +341,15 @@ function Result() {
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "18px" }}>
             <span style={{ fontSize: "20px" }}>📊</span>
             <h2 style={{ fontSize: "19px", margin: 0, color: "#fff", fontWeight: "700" }}>
-              Skill Competency Profile
+              {radarTitle}
             </h2>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px", alignItems: "center" }}>
-            {/* SVG Radar Chart */}
             <div>
               <RadarChart skills={analytics.radarSkills} size={320} />
             </div>
 
-            {/* Side-by-side Competency Score Cards */}
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
               {analytics.radarSkills.map((item, idx) => (
                 <div key={idx} style={{ background: "rgba(255,255,255,0.03)", padding: "10px 14px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.05)" }}>
@@ -213,7 +374,7 @@ function Result() {
         </div>
 
         {/* ========================================= */}
-        {/* 3. AI INTERVIEW ANALYSIS (Gemini Feedback) */}
+        {/* 3. AI INTERVIEW / CODING ANALYSIS         */}
         {/* ========================================= */}
         <div
           style={{
@@ -228,7 +389,7 @@ function Result() {
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
             <span style={{ fontSize: "20px" }}>🧠</span>
             <h2 style={{ fontSize: "19px", margin: 0, color: "#fff", fontWeight: "700" }}>
-              AI Interview Analysis & Qualitative Feedback
+              {analytics.isDsaRound ? "AI Code Review & Algorithmic Feedback" : "AI Interview Analysis & Qualitative Feedback"}
             </h2>
           </div>
 
@@ -237,7 +398,6 @@ function Result() {
           </p>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
-            {/* Strengths */}
             <div style={{ background: "rgba(0, 230, 118, 0.05)", border: "1px solid rgba(0, 230, 118, 0.2)", borderRadius: "10px", padding: "16px" }}>
               <span style={{ fontSize: "13px", fontWeight: "bold", color: "#00e676", display: "block", marginBottom: "10px", textTransform: "uppercase" }}>
                 ✓ Key Strengths Observed
@@ -249,7 +409,6 @@ function Result() {
               </ul>
             </div>
 
-            {/* Weaknesses / Growth */}
             <div style={{ background: "rgba(255, 152, 0, 0.05)", border: "1px solid rgba(255, 152, 0, 0.2)", borderRadius: "10px", padding: "16px" }}>
               <span style={{ fontSize: "13px", fontWeight: "bold", color: "#ffb74d", display: "block", marginBottom: "10px", textTransform: "uppercase" }}>
                 ⚠ Growth & Improvement Areas
@@ -264,158 +423,117 @@ function Result() {
         </div>
 
         {/* ========================================= */}
-        {/* 4. COMMUNICATION ANALYSIS                 */}
+        {/* 4. TECHNICAL DOMAIN BREAKDOWN (If present) */}
         {/* ========================================= */}
-        <div
-          style={{
-            background: "#13171f",
-            borderRadius: "14px",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
-            padding: "26px 20px",
-            marginBottom: "24px",
-            textAlign: "left"
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{ fontSize: "20px" }}>🗣️</span>
+        {analytics.technicalProficiency && analytics.technicalProficiency.length > 0 && (
+          <div
+            style={{
+              background: "#13171f",
+              borderRadius: "14px",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
+              padding: "26px 20px",
+              marginBottom: "24px",
+              textAlign: "left"
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "18px" }}>
+              <span style={{ fontSize: "20px" }}>📚</span>
               <h2 style={{ fontSize: "19px", margin: 0, color: "#fff", fontWeight: "700" }}>
-                Communication & Response Structure
+                {analytics.isDsaRound ? "Algorithmic Pattern Proficiency" : "Technical Proficiency & Domain Breakdown"}
               </h2>
             </div>
-            <span style={{ fontSize: "12px", color: "#888", background: "rgba(255,255,255,0.05)", padding: "4px 10px", borderRadius: "12px" }}>
-              Text NLP Metrics
-            </span>
-          </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "12px", marginBottom: "16px" }}>
-            {Object.entries(analytics.communicationAnalysis).map(([key, val]) => (
-              <div key={key} style={{ background: "rgba(255,255,255,0.03)", padding: "14px 12px", borderRadius: "10px", textAlign: "center", border: "1px solid rgba(255,255,255,0.06)" }}>
-                <span style={{ fontSize: "11px", color: "#888", textTransform: "uppercase", display: "block", marginBottom: "4px" }}>
-                  {key}
-                </span>
-                <span style={{ fontSize: "22px", fontWeight: "bold", color: getScoreColor(val) }}>
-                  {val}%
-                </span>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ background: "rgba(0,0,0,0.3)", padding: "12px 14px", borderRadius: "8px", fontSize: "12px", color: "#888" }}>
-            💡 <b>Voice & Speech Analytics</b> (Speaking pace, pitch modulation, and filler word detection) will unlock in the upcoming voice interaction update.
-          </div>
-        </div>
-
-        {/* ========================================= */}
-        {/* 5. TECHNICAL PROFICIENCY & TOPICS TO REVISE */}
-        {/* ========================================= */}
-        <div
-          style={{
-            background: "#13171f",
-            borderRadius: "14px",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
-            padding: "26px 20px",
-            marginBottom: "24px",
-            textAlign: "left"
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "18px" }}>
-            <span style={{ fontSize: "20px" }}>📚</span>
-            <h2 style={{ fontSize: "19px", margin: 0, color: "#fff", fontWeight: "700" }}>
-              Technical Proficiency & Domain Breakdown
-            </h2>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "14px", marginBottom: "20px" }}>
-            {analytics.technicalProficiency.map((tech, idx) => (
-              <div key={idx} style={{ background: "rgba(255,255,255,0.03)", padding: "12px 14px", borderRadius: "8px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "6px" }}>
-                  <span style={{ color: "#ddd" }}>{tech.topic}</span>
-                  <span style={{ color: getScoreColor(tech.score), fontWeight: "bold" }}>{tech.score}%</span>
-                </div>
-                <div style={{ height: "6px", background: "#222", borderRadius: "4px", overflow: "hidden" }}>
-                  <div style={{ width: `${tech.score}%`, height: "100%", background: getScoreColor(tech.score), borderRadius: "4px" }} />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Topics to Revise */}
-          <div style={{ background: "rgba(255,255,255,0.02)", padding: "16px", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.06)" }}>
-            <span style={{ fontSize: "13px", fontWeight: "bold", color: "#ffb74d", display: "block", marginBottom: "8px" }}>
-              📖 Priority Topics to Revise Before Next Interview:
-            </span>
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              {analytics.topicsToRevise.map((top, idx) => (
-                <div key={idx} style={{ fontSize: "13px", color: "#bbb" }}>
-                  <span style={{ color: "#ff9800", marginRight: "6px" }}>•</span> {top}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "14px", marginBottom: "20px" }}>
+              {analytics.technicalProficiency.map((tech, idx) => (
+                <div key={idx} style={{ background: "rgba(255,255,255,0.03)", padding: "12px 14px", borderRadius: "8px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "6px" }}>
+                    <span style={{ color: "#ddd" }}>{tech.topic}</span>
+                    <span style={{ color: getScoreColor(tech.score), fontWeight: "bold" }}>{tech.score}%</span>
+                  </div>
+                  <div style={{ height: "6px", background: "#222", borderRadius: "4px", overflow: "hidden" }}>
+                    <div style={{ width: `${tech.score}%`, height: "100%", background: getScoreColor(tech.score), borderRadius: "4px" }} />
+                  </div>
                 </div>
               ))}
             </div>
-          </div>
-        </div>
 
-        {/* ========================================= */}
-        {/* 6. PROJECT & RESUME EVALUATION           */}
-        {/* ========================================= */}
-        <div
-          style={{
-            background: "#13171f",
-            borderRadius: "14px",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
-            padding: "26px 20px",
-            marginBottom: "24px",
-            textAlign: "left"
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "18px" }}>
-            <span style={{ fontSize: "20px" }}>💻</span>
-            <h2 style={{ fontSize: "19px", margin: 0, color: "#fff", fontWeight: "700" }}>
-              Project & Resume Evaluation
-            </h2>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "10px", marginBottom: "18px" }}>
-            <div style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
-              <span style={{ fontSize: "11px", color: "#888", display: "block" }}>Resume Alignment</span>
-              <span style={{ fontSize: "20px", fontWeight: "bold", color: "#00e676" }}>{analytics.projectEvaluation.resumeUnderstanding}%</span>
-            </div>
-            <div style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
-              <span style={{ fontSize: "11px", color: "#888", display: "block" }}>Skill Application</span>
-              <span style={{ fontSize: "20px", fontWeight: "bold", color: "#2196f3" }}>{analytics.projectEvaluation.skillProficiency}%</span>
-            </div>
-            <div style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
-              <span style={{ fontSize: "11px", color: "#888", display: "block" }}>Project Depth</span>
-              <span style={{ fontSize: "20px", fontWeight: "bold", color: "#00e676" }}>{analytics.projectEvaluation.projectUnderstanding}%</span>
-            </div>
-            <div style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
-              <span style={{ fontSize: "11px", color: "#888", display: "block" }}>Technical Rigor</span>
-              <span style={{ fontSize: "20px", fontWeight: "bold", color: "#ffb74d" }}>{analytics.projectEvaluation.technicalDepth}%</span>
-            </div>
-          </div>
-
-          {/* Project-Wise Scores */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
-            {analytics.projectEvaluation.projectScores.map((proj, idx) => (
-              <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(0,0,0,0.3)", padding: "12px 16px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.05)" }}>
-                <div>
-                  <h4 style={{ margin: 0, fontSize: "14px", color: "#fff" }}>{proj.name}</h4>
-                  <span style={{ fontSize: "12px", color: "#888" }}>{proj.depth}</span>
-                </div>
-                <div style={{ fontSize: "18px", fontWeight: "bold", color: "#64b5f6" }}>
-                  {proj.score} <span style={{ fontSize: "12px", color: "#777" }}>/ 10</span>
-                </div>
+            <div style={{ background: "rgba(255,255,255,0.02)", padding: "16px", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <span style={{ fontSize: "13px", fontWeight: "bold", color: "#ffb74d", display: "block", marginBottom: "8px" }}>
+                📖 Priority Topics to Revise:
+              </span>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {analytics.topicsToRevise.map((top, idx) => (
+                  <div key={idx} style={{ fontSize: "13px", color: "#bbb" }}>
+                    <span style={{ color: "#ff9800", marginRight: "6px" }}>•</span> {top}
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
           </div>
-
-          <p style={{ fontSize: "13px", color: "#aaa", fontStyle: "italic", margin: 0 }}>
-            "{analytics.projectEvaluation.feedback}"
-          </p>
-        </div>
+        )}
 
         {/* ========================================= */}
-        {/* 7. QUESTION-BY-QUESTION INTERACTIVE REVIEW */}
+        {/* 5. PROJECT & RESUME EVALUATION (If valid) */}
+        {/* ========================================= */}
+        {analytics.projectEvaluation && (
+          <div
+            style={{
+              background: "#13171f",
+              borderRadius: "14px",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
+              padding: "26px 20px",
+              marginBottom: "24px",
+              textAlign: "left"
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "18px" }}>
+              <span style={{ fontSize: "20px" }}>💻</span>
+              <h2 style={{ fontSize: "19px", margin: 0, color: "#fff", fontWeight: "700" }}>
+                Project & Resume Evaluation
+              </h2>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "10px", marginBottom: "18px" }}>
+              <div style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
+                <span style={{ fontSize: "11px", color: "#888", display: "block" }}>Resume Alignment</span>
+                <span style={{ fontSize: "20px", fontWeight: "bold", color: "#00e676" }}>{analytics.projectEvaluation.resumeUnderstanding}%</span>
+              </div>
+              <div style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
+                <span style={{ fontSize: "11px", color: "#888", display: "block" }}>Skill Application</span>
+                <span style={{ fontSize: "20px", fontWeight: "bold", color: "#2196f3" }}>{analytics.projectEvaluation.skillProficiency}%</span>
+              </div>
+              <div style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
+                <span style={{ fontSize: "11px", color: "#888", display: "block" }}>Project Depth</span>
+                <span style={{ fontSize: "20px", fontWeight: "bold", color: "#00e676" }}>{analytics.projectEvaluation.projectUnderstanding}%</span>
+              </div>
+              <div style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
+                <span style={{ fontSize: "11px", color: "#888", display: "block" }}>Technical Rigor</span>
+                <span style={{ fontSize: "20px", fontWeight: "bold", color: "#ffb74d" }}>{analytics.projectEvaluation.technicalDepth}%</span>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
+              {analytics.projectEvaluation.projectScores.map((proj, idx) => (
+                <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(0,0,0,0.3)", padding: "12px 16px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.05)" }}>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: "14px", color: "#fff" }}>{proj.name}</h4>
+                    <span style={{ fontSize: "12px", color: "#888" }}>{proj.depth}</span>
+                  </div>
+                  <div style={{ fontSize: "18px", fontWeight: "bold", color: "#64b5f6" }}>
+                    {proj.score} <span style={{ fontSize: "12px", color: "#777" }}>/ 10</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <p style={{ fontSize: "13px", color: "#aaa", fontStyle: "italic", margin: 0 }}>
+              "{analytics.projectEvaluation.feedback}"
+            </p>
+          </div>
+        )}
+
+        {/* ========================================= */}
+        {/* 6. QUESTION-BY-QUESTION / PROBLEM REVIEW  */}
         {/* ========================================= */}
         <div
           style={{
@@ -431,11 +549,11 @@ function Result() {
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <span style={{ fontSize: "20px" }}>📈</span>
               <h2 style={{ fontSize: "19px", margin: 0, color: "#fff", fontWeight: "700" }}>
-                Question-by-Question Detailed Review
+                {analytics.isDsaRound ? "Problem-by-Problem Code Analysis" : "Question-by-Question Detailed Review"}
               </h2>
             </div>
             <span style={{ fontSize: "12px", color: "#888" }}>
-              Click any question to inspect evaluation & model answer
+              Click to inspect evaluation, test cases & model solution
             </span>
           </div>
 
@@ -453,7 +571,7 @@ function Result() {
                     transition: "all 0.2s ease"
                   }}
                 >
-                  {/* Accordion Header */}
+                  {/* Header */}
                   <div
                     onClick={() => toggleAccordion(idx)}
                     style={{
@@ -476,10 +594,10 @@ function Result() {
                           borderRadius: "4px"
                         }}
                       >
-                        Q{item.questionNumber}
+                        {analytics.isDsaRound ? `Problem ${item.questionNumber}` : `Q${item.questionNumber}`}
                       </span>
                       <span style={{ fontSize: "14px", color: "#fff", fontWeight: "600" }}>
-                        {item.question.length > 75 ? item.question.slice(0, 75) + "..." : item.question}
+                        {item.title || (item.question.length > 75 ? item.question.slice(0, 75) + "..." : item.question)}
                       </span>
                     </div>
 
@@ -493,56 +611,52 @@ function Result() {
                     </div>
                   </div>
 
-                  {/* Accordion Body */}
+                  {/* Body */}
                   {isOpen && (
                     <div style={{ padding: "0 18px 18px 18px", borderTop: "1px solid rgba(255, 255, 255, 0.05)" }}>
-                      {/* Full Question Text */}
-                      <p style={{ fontSize: "14px", color: "#90caf9", margin: "14px 0 10px 0", fontWeight: "500" }}>
-                        {item.question}
-                      </p>
-
-                      {/* Candidate Answer */}
-                      <div style={{ background: "rgba(0,0,0,0.4)", padding: "12px", borderRadius: "6px", marginBottom: "10px" }}>
-                        <span style={{ fontSize: "11px", color: "#888", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>
-                          Your Answer:
-                        </span>
-                        <p style={{ margin: 0, fontSize: "13px", color: item.answer === "SKIPPED" ? "#ff9800" : "#00e676", whiteSpace: "pre-wrap" }}>
-                          {item.answer}
-                        </p>
-                      </div>
-
-                      {/* Follow-up Question and Answer if present */}
-                      {item.followUpQuestion && (
-                        <div style={{ background: "rgba(255, 152, 0, 0.06)", padding: "12px", borderRadius: "6px", marginBottom: "10px", border: "1px solid rgba(255, 152, 0, 0.2)" }}>
-                          <span style={{ fontSize: "11px", color: "#ffb74d", fontWeight: "bold", textTransform: "uppercase", display: "block", marginBottom: "4px" }}>
-                            ⚡ Adaptive Follow-Up Question:
+                      
+                      {/* DSA Specific Badges */}
+                      {item.dsaDetails && (
+                        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", margin: "12px 0 10px 0" }}>
+                          <span style={{ fontSize: "12px", background: "rgba(0,230,118,0.15)", color: "#00e676", padding: "3px 8px", borderRadius: "4px", fontWeight: "bold" }}>
+                            🟢 Logic: {item.dsaDetails.logicScore}%
                           </span>
-                          <p style={{ margin: "0 0 6px 0", fontSize: "13px", color: "#fff" }}>
-                            {item.followUpQuestion}
-                          </p>
-                          <span style={{ fontSize: "11px", color: "#888", display: "block", marginBottom: "2px" }}>
-                            Your Follow-Up Response:
+                          <span style={{ fontSize: "12px", background: item.dsaDetails.hasSyntaxError ? "rgba(255,183,77,0.15)" : "rgba(33,150,243,0.15)", color: item.dsaDetails.hasSyntaxError ? "#ffb74d" : "#64b5f6", padding: "3px 8px", borderRadius: "4px", fontWeight: "bold" }}>
+                            {item.dsaDetails.hasSyntaxError ? "🟡 Syntax Note: " : "🔵 Syntax: "} {item.dsaDetails.syntaxScore}%
                           </span>
-                          <p style={{ margin: 0, fontSize: "13px", color: "#64b5f6" }}>
-                            {item.followUpAnswer || "No answer recorded"}
-                          </p>
+                          <span style={{ fontSize: "12px", background: "rgba(255,255,255,0.05)", color: "#aaa", padding: "3px 8px", borderRadius: "4px" }}>
+                            ⏱ Time: {item.dsaDetails.timeSpent}
+                          </span>
+                          <span style={{ fontSize: "12px", background: "rgba(255,255,255,0.05)", color: "#aaa", padding: "3px 8px", borderRadius: "4px" }}>
+                            Complexity: {item.dsaDetails.complexity}
+                          </span>
                         </div>
                       )}
 
-                      {/* Score Rationale */}
+                      {/* Candidate Code or Answer */}
+                      <div style={{ background: "#0d1117", padding: "12px", borderRadius: "6px", marginBottom: "10px", border: "1px solid rgba(255,255,255,0.08)" }}>
+                        <span style={{ fontSize: "11px", color: "#888", display: "block", marginBottom: "6px", textTransform: "uppercase" }}>
+                          {analytics.isDsaRound ? `Submitted ${item.dsaDetails?.language.toUpperCase()} Solution:` : "Your Answer:"}
+                        </span>
+                        <pre style={{ margin: 0, fontSize: "13px", color: item.answer === "SKIPPED" ? "#ff9800" : "#00e676", whiteSpace: "pre-wrap", fontFamily: "Consolas, Monaco, monospace" }}>
+                          {item.answer}
+                        </pre>
+                      </div>
+
+                      {/* Evaluation Feedback */}
                       <div style={{ background: "rgba(255,255,255,0.03)", padding: "10px 12px", borderRadius: "6px", marginBottom: "10px" }}>
                         <span style={{ fontSize: "11px", color: "#aaa", fontWeight: "bold", display: "block", marginBottom: "2px" }}>
-                          💡 Why this score?
+                          💡 AI Evaluation & Rationale:
                         </span>
-                        <p style={{ margin: 0, fontSize: "13px", color: "#ccc" }}>
+                        <p style={{ margin: 0, fontSize: "13px", color: "#ccc", lineHeight: "1.5" }}>
                           {item.whyScore}
                         </p>
                       </div>
 
-                      {/* Suggested Model Answer */}
+                      {/* Model Answer / Solution Note */}
                       <div style={{ background: "rgba(0, 230, 118, 0.04)", padding: "12px", borderRadius: "6px", border: "1px solid rgba(0, 230, 118, 0.15)" }}>
                         <span style={{ fontSize: "11px", color: "#00e676", fontWeight: "bold", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>
-                          ✨ Recommended Model Answer:
+                          ✨ Recommended Optimal Strategy:
                         </span>
                         <p style={{ margin: 0, fontSize: "13px", color: "#e0e0e0", lineHeight: "1.5" }}>
                           {item.suggestedAnswer}
@@ -557,70 +671,7 @@ function Result() {
         </div>
 
         {/* ========================================= */}
-        {/* 8. ML INTERVIEW READINESS PIPELINE       */}
-        {/* ========================================= */}
-        <div
-          style={{
-            background: "#13171f",
-            borderRadius: "14px",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
-            padding: "26px 20px",
-            marginBottom: "24px",
-            textAlign: "left"
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "8px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{ fontSize: "20px" }}>🤖</span>
-              <h2 style={{ fontSize: "19px", margin: 0, color: "#fff", fontWeight: "700" }}>
-                ML Interview Readiness Classification
-              </h2>
-            </div>
-            <span
-              style={{
-                fontSize: "12px",
-                fontWeight: "bold",
-                color: "#00e676",
-                background: "rgba(0, 230, 118, 0.1)",
-                padding: "4px 10px",
-                borderRadius: "12px",
-                border: "1px solid rgba(0, 230, 118, 0.3)"
-              }}
-            >
-              {analytics.mlReadiness.status}
-            </span>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "12px", marginBottom: "16px" }}>
-            <div style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
-              <span style={{ fontSize: "11px", color: "#888", display: "block" }}>Readiness Score</span>
-              <span style={{ fontSize: "20px", fontWeight: "bold", color: getScoreColor(analytics.mlReadiness.score) }}>
-                {analytics.mlReadiness.score}%
-              </span>
-            </div>
-            <div style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
-              <span style={{ fontSize: "11px", color: "#888", display: "block" }}>Avg Words/Ans</span>
-              <span style={{ fontSize: "20px", fontWeight: "bold", color: "#64b5f6" }}>
-                {analytics.mlReadiness.features.avgWordsPerAnswer}
-              </span>
-            </div>
-            <div style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
-              <span style={{ fontSize: "11px", color: "#888", display: "block" }}>Tech Keywords</span>
-              <span style={{ fontSize: "20px", fontWeight: "bold", color: "#00e676" }}>
-                {analytics.mlReadiness.features.totalTechnicalTerms}
-              </span>
-            </div>
-            <div style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
-              <span style={{ fontSize: "11px", color: "#888", display: "block" }}>Structure Index</span>
-              <span style={{ fontSize: "20px", fontWeight: "bold", color: "#ffb74d" }}>
-                {analytics.mlReadiness.features.structureCompliance}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* ========================================= */}
-        {/* 9. AI CAREER ACTION PLAN & RECOMMENDATIONS */}
+        {/* 7. ACTION PLAN & RECOMMENDATIONS          */}
         {/* ========================================= */}
         <div
           style={{
@@ -635,12 +686,11 @@ function Result() {
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "18px" }}>
             <span style={{ fontSize: "22px" }}>🎯</span>
             <h2 style={{ fontSize: "20px", margin: 0, color: "#fff", fontWeight: "700" }}>
-              Your Personalized AI Action Plan
+              Your Personalized Action Plan
             </h2>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "14px", marginBottom: "20px" }}>
-            {/* Priority 1 */}
             <div style={{ background: "rgba(255,255,255,0.03)", padding: "16px", borderRadius: "10px", borderLeft: "4px solid #ff5252" }}>
               <span style={{ fontSize: "11px", color: "#ff5252", fontWeight: "bold", textTransform: "uppercase" }}>
                 {analytics.actionPlan.priority1.priority}
@@ -653,7 +703,6 @@ function Result() {
               </p>
             </div>
 
-            {/* Priority 2 */}
             <div style={{ background: "rgba(255,255,255,0.03)", padding: "16px", borderRadius: "10px", borderLeft: "4px solid #ffb74d" }}>
               <span style={{ fontSize: "11px", color: "#ffb74d", fontWeight: "bold", textTransform: "uppercase" }}>
                 {analytics.actionPlan.priority2.priority}
@@ -666,7 +715,6 @@ function Result() {
               </p>
             </div>
 
-            {/* Priority 3 */}
             <div style={{ background: "rgba(255,255,255,0.03)", padding: "16px", borderRadius: "10px", borderLeft: "4px solid #2196f3" }}>
               <span style={{ fontSize: "11px", color: "#64b5f6", fontWeight: "bold", textTransform: "uppercase" }}>
                 {analytics.actionPlan.priority3.priority}
@@ -682,7 +730,7 @@ function Result() {
 
           <div style={{ background: "rgba(33, 150, 243, 0.1)", padding: "14px 18px", borderRadius: "8px", border: "1px solid rgba(33, 150, 243, 0.25)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
             <div>
-              <span style={{ fontSize: "12px", color: "#90caf9", display: "block" }}>Recommended Next Step</span>
+              <span style={{ fontSize: "12px", color: "#90caf9", display: "block" }}>Recommended Next Session</span>
               <strong style={{ fontSize: "14px", color: "#fff" }}>{analytics.actionPlan.recommendedNextInterview}</strong>
             </div>
             <button
@@ -703,15 +751,68 @@ function Result() {
           </div>
         </div>
 
-        {/* ACTION BUTTONS */}
-        <div style={{ display: "flex", gap: "14px", marginBottom: "30px" }}>
-          <button
-            className="start-btn"
-            onClick={() => navigate("/")}
-            style={{ flex: 1, padding: "14px", fontSize: "16px" }}
+        {/* BOTTOM INSPIRATIONAL MESSAGE & ACTION BUTTONS */}
+        <div style={{ margin: "24px 0 30px 0", textAlign: "center" }}>
+          <div
+            style={{
+              padding: "16px 20px",
+              background: "rgba(0, 230, 118, 0.08)",
+              border: "1px solid rgba(0, 230, 118, 0.25)",
+              borderRadius: "12px",
+              marginBottom: "20px"
+            }}
           >
-            Start Another Simulation 🔄
-          </button>
+            <h3 style={{ margin: "0 0 6px 0", color: "#00e676", fontSize: "17px", fontWeight: "700" }}>
+              🚀 Best of luck for your future interviews! ✨
+            </h3>
+            <p style={{ margin: 0, color: "#bbb", fontSize: "13px" }}>
+              Consistent preparation, structured communication, and continuous learning turn ambitions into job offers.
+            </p>
+          </div>
+
+          <div className="no-print" style={{ display: "flex", gap: "14px" }}>
+            <button
+              onClick={() => navigate("/dashboard", { state: { userId: effectiveUserId } })}
+              style={{
+                flex: 1,
+                background: "linear-gradient(90deg, #2196f3, #00e676)",
+                color: "#000",
+                border: "none",
+                padding: "14px",
+                borderRadius: "8px",
+                fontSize: "15px",
+                fontWeight: "bold",
+                cursor: "pointer"
+              }}
+            >
+              📊 View Dashboard & Test Comparisons
+            </button>
+
+            <button
+              className="start-btn"
+              onClick={() => navigate("/")}
+              style={{ flex: 1, padding: "14px", fontSize: "15px" }}
+            >
+              Start Another Simulation 🔄
+            </button>
+
+            <button
+              onClick={handleDownloadPdf}
+              style={{
+                flex: 1,
+                background: "#21262d",
+                color: "#fff",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                padding: "14px",
+                borderRadius: "8px",
+                fontSize: "16px",
+                fontWeight: "bold",
+                cursor: "pointer"
+              }}
+            >
+              ⬇️ Save Result (PDF)
+            </button>
+          </div>
         </div>
 
       </div>

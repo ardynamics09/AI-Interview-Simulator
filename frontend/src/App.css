@@ -61,21 +61,56 @@ body {
   color: #cbd5e1;
 }
 
+.card input[type="text"],
+.name-input {
+  width: 100%;
+  padding: 15px 18px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  font-size: 15px;
+  font-weight: 500;
+  outline: none;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+
+.card input[type="text"]:focus,
+.name-input:focus {
+  border-color: #60a5fa;
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 16px rgba(96, 165, 250, 0.35);
+}
+
+.card input[type="text"]::placeholder,
+.name-input::placeholder {
+  color: #94a3b8;
+}
+
 .card select {
   width: 100%;
-
-  padding: 14px;
-
+  padding: 14px 18px;
   border-radius: 12px;
-
-  border: 1px solid rgba(255,255,255,0.2);
-
-  background: rgba(255,255,255,0.08);
-
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(20, 25, 40, 0.85);
   color: white;
-
   font-size: 15px;
-  
+  outline: none;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.card select:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 16px rgba(96, 165, 250, 0.35);
+}
+
+.card select option {
+  background: #0f172a;
+  color: #ffffff;
+  padding: 10px;
 }
 
 .resume-section {
@@ -1786,5 +1821,33 @@ textarea::placeholder {
   .social-btn {
     padding: 8px 14px;
     font-size: 12px;
+  }
+}
+
+/* =======================================================
+              PRINT / PDF DOWNLOAD STYLES
+   ======================================================= */
+@media print {
+  body {
+    background: #0d1117 !important;
+    color: #fff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .no-print,
+  button,
+  .app-footer {
+    display: none !important;
+  }
+
+  .page {
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  div {
+    break-inside: avoid;
   }
 }

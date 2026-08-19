@@ -31,7 +31,7 @@ except Exception as e:
 
 app = FastAPI(
     title="AI Interview Simulator Backend",
-    version="4.5"
+    version="4.6"
 )
 
 app.add_middleware(
@@ -51,7 +51,7 @@ class InterviewRequest(BaseModel):
     branch: str = "CSE"
     year: str = "3rd Year"
     role: str = "Software Engineer"
-    interviewType: str = "AI Mock Interview"
+    interviewType: str = "HR Interview"
     resumeText: Optional[str] = ""
     skills: Optional[List[str]] = []
     projects: Optional[List[str]] = []
@@ -120,8 +120,45 @@ def build_prompt(data: InterviewRequest):
     projects_str = ", ".join(data.projects) if data.projects else "Relevant domain projects"
     resume_context = f"\nResume Text Snippet:\n{data.resumeText[:1200]}\n" if data.resumeText else ""
 
-    if data.interviewType == "AI Mock Interview":
-        return f"""You are a senior technical & hiring interviewer conducting a highly personalized 10-Question AI Mock Interview.
+    if data.interviewType == "HR Interview":
+        return f"""You are a senior Human Resources Director conducting an HR and behavioral interview.
+
+Candidate Profile:
+- Name: {data.name}
+- Target Role: {data.role}
+- Academic Year: {data.year}
+- Academic Branch: {data.branch}
+
+Task:
+Generate EXACTLY 5 high-impact HR, behavioral, situational, and cultural fit interview questions.
+Focus strictly on:
+1. Candidate's introduction, career motivations, and passion for the {data.role} position.
+2. Greatest personal and professional strengths and one area of active improvement.
+3. Handling work pressure, tight project deadlines, or unexpected roadblocks.
+4. Career vision and professional aspirations for the next 3 to 5 years.
+5. Why they want this specific role and what makes them an exceptional team player.
+
+DO NOT ask resume-specific technical framework questions or mention unprovided projects.
+Output EXACTLY 5 questions, one per line. No numbering, no bullets, no headers.
+"""
+
+    elif data.interviewType == "Technical Interview":
+        return f"""You are a senior technical interviewer conducting a technical assessment.
+
+Candidate Profile:
+- Name: {data.name}
+- Branch: {data.branch} (Core Topics: {topics})
+- Academic Year: {data.year}
+- Target Role: {data.role}
+
+Task:
+Generate EXACTLY 5 rigorous technical questions covering core {data.branch} fundamentals, data handling, algorithmic thinking, and {data.role} concepts.
+
+Output EXACTLY 5 questions, one per line. No numbering, no bullets, no headers.
+"""
+
+    elif data.interviewType == "AI Mock Interview":
+        return f"""You are a senior technical & hiring interviewer conducting a personalized 10-Question AI Mock Interview.
 
 Candidate Profile:
 - Name: {data.name}
@@ -133,19 +170,15 @@ Candidate Profile:
 {resume_context}
 
 Generate EXACTLY 10 structured, personalized questions in this exact order:
-Q1: Introduction / HR warm-up (e.g. Tell me about yourself and briefly walk me through your technical background)
-Q2-Q3: Resume & Skills (2 Questions probing specific skills mentioned in their resume like {skills_str} and how they applied them)
-Q4-Q5: Projects (2 Questions deep-diving into the architecture, tech stack, tradeoffs, and challenges of their actual projects like {projects_str})
+Q1: Introduction / HR warm-up
+Q2-Q3: Resume & Skills (2 Questions probing specific skills mentioned in their resume like {skills_str})
+Q4-Q5: Projects (2 Questions deep-diving into the architecture, stack, and challenges of their actual projects like {projects_str})
 Q6-Q7: Branch Fundamentals (2 Questions covering core {data.branch} concepts at a {data.year} level)
 Q8: Role-specific Knowledge (1 Question specific to being a {data.role})
-Q9: Practical Problem Solving (1 Scenario or algorithmic problem e.g. data structures / debugging / system behavior)
-Q10: Behavioral / Situational (1 Question about handling technical conflicts, tight deadlines, or project roadblocks)
+Q9: Practical Problem Solving (1 Scenario or algorithmic problem)
+Q10: Behavioral / Situational (1 Question about handling technical conflicts or tight deadlines)
 
-Rules:
-1. Generate EXACTLY 10 questions.
-2. Incorporate candidate's actual projects and skills into questions 2, 3, 4, and 5.
-3. Only output the questions, one question per line.
-4. No numbering, bullets, labels, or explanatory text.
+Output EXACTLY 10 questions, one question per line. No numbering, bullets, labels, or explanatory text.
 """
 
     elif data.interviewType == "Full Interview Simulation":
@@ -162,50 +195,19 @@ Candidate Profile:
 
 Generate EXACTLY 20 questions corresponding to these 6 rounds:
 [Round 1: HR & Intro - 3 Questions]
-Q1-Q3: Personal introduction, passion for {data.role}, technical strengths & areas of growth.
-
-[Round 2: Resume & Projects - 4 Questions]
-Q4-Q7: Deep dive into candidate's actual projects ({projects_str}) and technical skills ({skills_str}), covering architecture, tech choices, Gemini/API integration hurdles, and scalability.
-
-[Round 3: Technical Fundamentals - 5 Questions]
-Q8-Q12: Core {data.branch} fundamentals and {data.role} technical questions tailored to a {data.year} student.
-
+[Round 2: Resume & Projects - 4 Questions referencing {projects_str} and {skills_str}]
+[Round 3: Technical Fundamentals - 5 Questions covering {data.branch}]
 [Round 4: Problem Solving & Debugging - 3 Questions]
-Q13-Q15: Practical coding approach, production debugging (e.g. API 500 errors), and performance optimization bottlenecks under load.
-
 [Round 5: Behavioral & Situational - 3 Questions]
-Q16-Q18: Project roadblocks, team technical disagreements, and managing tight release deadlines.
+[Round 6: Final Role-Specific - 2 Questions for a {data.role}]
 
-[Round 6: Final Role-Specific - 2 Questions]
-Q19-Q20: Advanced high-level architecture / business metrics for a {data.role}.
-
-Rules:
-1. Output EXACTLY 20 questions, one per line.
-2. No round labels, headers, numbers, bullets, or explanations in the response.
-3. Ensure questions directly reference the candidate's actual projects ({projects_str}) and skills ({skills_str}).
-"""
-
-    elif data.interviewType == "HR Interview":
-        return f"""You are a senior HR director.
-Candidate Name: {data.name} | Branch: {data.branch} | Year: {data.year} | Target Role: {data.role}
-
-Generate EXACTLY 5 HR & behavioral interview questions matching a {data.year} student.
-Rules:
-- One question per line.
-- No numbering or bullets.
-- No answers or explanations.
+Output EXACTLY 20 questions, one per line. No round labels, headers, numbers, bullets, or explanations.
 """
 
     else:
-        return f"""You are a senior technical interviewer.
-Candidate Name: {data.name} | Branch: {data.branch} | Year: {data.year} | Target Role: {data.role}
-Topics: {topics}
-
-Generate EXACTLY 5 technical interview questions for a {data.year} student.
-Rules:
-- One question per line.
-- No numbering or bullets.
-- No answers or explanations.
+        return f"""You are an interviewer.
+Generate 5 interview questions for {data.name} applying for {data.role} in {data.branch}.
+Output one question per line without numbers or bullets.
 """
 
 def build_followup_prompt(data: FollowUpRequest):
@@ -220,10 +222,6 @@ Task:
 Analyze what the candidate wrote.
 Pick an interesting technical point, architectural decision, machine learning model, algorithm, tool, or claim from their answer.
 Ask ONE sharp, challenging, natural follow-up question.
-Examples:
-- If they mentioned Random Forest: "Why did you choose Random Forest instead of Linear Regression or XGBoost for this dataset?"
-- If they mentioned FastAPI/React: "How did you manage asynchronous request handling and state updates under high traffic?"
-- If they gave an algorithmic approach: "What is the space complexity of that approach and how would you optimize it if memory was constrained?"
 
 Rules:
 1. Output EXACTLY ONE follow-up question.
@@ -274,8 +272,90 @@ def extract_questions(text: str):
     return questions
 
 # ==============================
-# Intelligent Fallback Generators
+# Dedicated Fallback Generators
 # ==============================
+
+def get_hr_fallback(data: InterviewRequest):
+    return [
+        "Tell me about yourself, your background, and what drives your passion in this field.",
+        "What are your greatest strengths and one specific area you are actively working to improve?",
+        "Describe a situation where you had to work under tight deadlines or manage conflicting priorities. How did you handle it?",
+        "Where do you see yourself in your career 3 to 5 years from now?",
+        f"Why are you interested in becoming a {data.role} and what unique value do you bring to our team?"
+    ]
+
+def get_technical_fallback(data: InterviewRequest):
+    branch_q = {
+        "CSE": [
+            "What is the difference between a process and a thread in Operating Systems?",
+            "Explain the four pillars of Object-Oriented Programming with a practical software example.",
+            "What is database normalization and why is 3NF commonly targeted?",
+            "Explain the difference between Array and Linked List in terms of search, insertion, and cache locality.",
+            "What is the difference between TCP and UDP, and when would you choose one over the other?"
+        ],
+        "IT": [
+            "Explain how JWT authentication works in modern web applications.",
+            "What is the difference between SQL indexing and full table scans?",
+            "How do RESTful APIs differ from GraphQL in data fetching and bandwidth efficiency?",
+            "Explain the concept of microservices architecture versus a monolithic architecture.",
+            "What security measures do you implement to protect web applications against Cross-Site Scripting (XSS) and SQL Injection?"
+        ],
+        "MNC": [
+            "What is the difference between correlation and causation in statistical modeling?",
+            "Explain the time complexity of Binary Search and mathematically why it is O(log n).",
+            "What is the Central Limit Theorem and why is it important in hypothesis testing?",
+            "Explain the difference between overfitting and underfitting in Machine Learning models.",
+            "How does gradient descent optimize weights in predictive modeling?"
+        ],
+        "ECE": [
+            "What is the difference between a microprocessor and a microcontroller?",
+            "Explain the working principle of pulse width modulation (PWM).",
+            "Describe the difference between synchronous and asynchronous communication protocols.",
+            "What is an interrupt in embedded systems and how does the CPU handle interrupt service routines (ISR)?",
+            "Explain the Nyquist-Shannon sampling theorem and its significance in digital signal processing."
+        ]
+    # Role-specific overrides for high-precision technical questioning
+    role_lower = data.role.lower()
+    if "robotics" in role_lower:
+        return [
+            "Explain the working principle of a PID controller in robotic joint position control and how tuning Kp, Ki, and Kd affects overshoot and settling time.",
+            "What is the fundamental difference between Forward Kinematics and Inverse Kinematics in a multi-axis robotic arm manipulator?",
+            "How does ROS (Robot Operating System) handle inter-node communication using publishers, subscribers, and service calls?",
+            "Describe how sensor fusion (e.g. Complementary Filter or Extended Kalman Filter) combines accelerometer and gyroscope data from an IMU.",
+            "Explain how Path Planning algorithms like A* or RRT (Rapidly-exploring Random Tree) find collision-free trajectories for mobile robots."
+        ]
+    elif "vlsi" in role_lower:
+        return [
+            "Explain the concepts of Setup Time and Hold Time violations in sequential digital circuits and how to fix them.",
+            "What is Metastability in digital systems and how do Multi-Flop Synchronizers mitigate Clock Domain Crossing (CDC) issues?",
+            "Explain the difference between blocking (=) and non-blocking (<=) assignments in Verilog and their impact on hardware synthesis.",
+            "What is Static Timing Analysis (STA) and how does Clock Skew affect maximum operating frequency?",
+            "Describe the CMOS inverter voltage transfer characteristic (VTC) and noise margins."
+        ]
+    elif "embedded" in role_lower:
+        return [
+            "What is Priority Inversion in an RTOS and how does Priority Inheritance Protocol resolve it?",
+            "Explain the working mechanism of an Interrupt Service Routine (ISR) and why blocking functions or delays should never be called inside an ISR.",
+            "Compare SPI, I2C, and UART protocols in terms of speed, pin count, master-slave architecture, and clock synchronization.",
+            "What is Direct Memory Access (DMA) and how does it offload data transfers from the CPU in embedded systems?",
+            "Explain memory layout of a C program in an embedded microcontroller (Text, Data, BSS, Heap, Stack)."
+        ]
+    elif "battery" in role_lower or "ev" in role_lower:
+        return [
+            "How does a Battery Management System (BMS) estimate State of Charge (SoC) using Coulomb Counting and Kalman Filtering?",
+            "Explain the difference between Passive Cell Balancing and Active Cell Balancing in Lithium-ion battery packs.",
+            "What mechanisms prevent thermal runaway in high-voltage electric vehicle battery packs?",
+            "Explain the role of the CAN Bus protocol in powertrain electronic control units (ECUs).",
+            "How does a 3-Phase Inverter use Pulse Width Modulation (PWM) to control traction motor torque and speed?"
+        ]
+
+    return branch_q.get(data.branch, [
+        f"Can you explain the core fundamentals and design principles in {data.branch}?",
+        f"What are the most important technical skills needed for a {data.role}?",
+        "Describe a challenging technical problem you solved and your step-by-step approach.",
+        f"How do you approach debugging and optimizing performance in {data.role}?",
+        "What data structure would you choose for frequent search operations and why?"
+    ])
 
 def get_ai_mock_fallback(data: InterviewRequest):
     skills = data.skills if data.skills and len(data.skills) > 0 else ["Python", "FastAPI", "React", "SQL"]
@@ -294,10 +374,6 @@ def get_ai_mock_fallback(data: InterviewRequest):
         "CSE": [
             "What is the difference between a process and a thread in Operating Systems?",
             "Explain the four pillars of Object-Oriented Programming with a practical software example."
-        ],
-        "IT": [
-            "Explain how JWT authentication works in modern web applications.",
-            "What is the difference between SQL indexing and full table scans?"
         ]
     }
     b_questions = branch_q.get(data.branch, [
@@ -306,10 +382,6 @@ def get_ai_mock_fallback(data: InterviewRequest):
     ])
 
     role_q = f"How would you design a scalable architecture for a high-traffic {data.role} service?"
-    if "data" in data.role.lower():
-        role_q = "You receive a dataset containing missing values and duplicate records. How would you clean and validate it before analysis?"
-    elif "frontend" in data.role.lower() or "design" in data.role.lower():
-        role_q = "How do you optimize frontend rendering performance and reduce layout shifts?"
 
     return [
         "Tell me about yourself and briefly walk me through your technical background.",
@@ -387,8 +459,7 @@ def get_adaptive_followup_fallback(data: FollowUpRequest):
     if "array" in ans_lower or "hashmap" in ans_lower or "time complexity" in ans_lower:
         return "What are the trade-offs of this approach in terms of auxiliary space complexity?"
     
-    # Contextual generic follow-up
-    return f"You mentioned key design choices in your response. What alternative approaches did you consider before settling on this solution?"
+    return "You mentioned key design choices in your response. What alternative approaches did you consider before settling on this solution?"
 
 # ==============================
 # Routes
@@ -399,7 +470,7 @@ def home():
     return {
         "status": "online",
         "service": "AI Interview Simulator Engine",
-        "version": "4.5",
+        "version": "4.6",
         "features": ["Adaptive AI Follow-ups", "Resume Aware", "Multi-Round Simulation"]
     }
 
@@ -433,8 +504,10 @@ def generate_questions(data: InterviewRequest):
             questions = get_ai_mock_fallback(data)
         elif data.interviewType == "Full Interview Simulation":
             questions = get_full_interview_fallback(data)
+        elif data.interviewType == "HR Interview":
+            questions = get_hr_fallback(data)
         else:
-            questions = get_ai_mock_fallback(data)[:target_count]
+            questions = get_technical_fallback(data)
 
     questions = questions[:target_count]
     return {
@@ -447,13 +520,6 @@ def generate_questions(data: InterviewRequest):
 
 @app.post("/generate-followup")
 def generate_followup(data: FollowUpRequest):
-    print("\n==========================================")
-    print("NEW ADAPTIVE FOLLOW-UP REQUEST")
-    print(f"Candidate: {data.name} | Question: {data.question[:50]}...")
-    print(f"Answer: {data.answer[:80]}...")
-    print("==========================================")
-
-    # If answer is too short or skipped, no follow up
     if len(data.answer.strip()) < 15 or data.answer.strip() == "SKIPPED":
         return {"hasFollowUp": False, "followUpQuestion": None}
 
@@ -471,7 +537,6 @@ def generate_followup(data: FollowUpRequest):
 
     final_followup = gemini_followup if gemini_followup else get_adaptive_followup_fallback(data)
 
-    print(f"Follow-up Generated: {final_followup}")
     return {
         "hasFollowUp": True,
         "followUpQuestion": final_followup,

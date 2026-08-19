@@ -1,10 +1,8 @@
 /**
  * Interview Analytics & ML Feature Extraction Engine
- * Extracts technical features from candidate answers and performs
- * deterministic scoring & qualitative feedback generation.
+ * Accurate, math-driven scoring and interview-type specialization.
  */
 
-// Technical dictionary per branch
 const BRANCH_KEYWORDS = {
   CSE: ["dsa", "oop", "dbms", "sql", "operating system", "networks", "tcp", "udp", "thread", "process", "cache", "latency", "algorithm", "complexity", "index", "normalization", "polymorphism", "inheritance", "binary", "tree", "graph", "hashmap", "queue", "stack"],
   IT: ["rest", "api", "jwt", "cloud", "aws", "docker", "frontend", "backend", "dbms", "sql", "react", "security", "http", "authentication", "database", "mongodb", "fastapi", "node"],
@@ -17,26 +15,68 @@ const BRANCH_KEYWORDS = {
   Petroleum: ["reservoir", "drilling", "permeability", "porosity", "eor", "well", "logging", "viscosity", "hydrocarbon", "pressure", "mud"]
 };
 
+const HR_KEYWORDS = [
+  "strength", "weakness", "leadership", "team", "conflict", "deadline", "pressure",
+  "goal", "motivation", "communication", "collaborate", "responsibility", "initiative",
+  "problem", "situation", "result", "action", "learned", "feedback", "growth", "challenge"
+];
+
 const STRUCTURE_KEYWORDS = [
   "first", "second", "then", "because", "for example", "specifically", "in order to",
   "result", "outcome", "implemented", "designed", "handled", "therefore", "trade-off",
   "approach", "solution", "architecture", "optimized", "resolved", "improved"
 ];
 
+
+// Valid common English and technical terms
+function isPlausibleEnglishWord(word) {
+  const clean = word.toLowerCase().replace(/[^a-z]/g, "");
+  if (clean.length === 0) return false;
+  if (clean.length === 1 && (clean === "a" || clean === "i")) return true;
+  if (clean.length === 1) return false; // Single random letters like 'd', 'w' are not words
+
+  // Check if has at least one vowel/y
+  const hasVowel = /[aeiouy]/.test(clean);
+  if (!hasVowel) return false;
+
+  // Check for ridiculous consonant clusters like 'qeficneqv', 'ebuqwurbw', 'qw', 'dfg'
+  if (/[bcdfghjklmnpqrstvwxz]{5,}/.test(clean)) return false;
+
+  return true;
+}
+
+function checkIsGibberish(text, words, keywordMatches, overlapCount) {
+  if (!words || words.length === 0) return true;
+  if (keywordMatches > 0 || overlapCount > 0) return false;
+
+  let junkTokens = 0;
+  for (const w of words) {
+    // If word contains numbers inside or is single consonant letter or lacks vowels
+    if (/\d/.test(w) || !isPlausibleEnglishWord(w)) {
+      junkTokens++;
+    }
+  }
+
+  const junkRatio = junkTokens / words.length;
+  // If more than 50% of tokens are junk/nonsense and zero keywords/overlap matched, it's gibberish
+  return junkRatio > 0.45;
+}
+
 /**
  * Extract ML features from an individual answer
  */
-export function extractAnswerFeatures(answerText, questionText, branch) {
+export function extractAnswerFeatures(answerText, questionText, branch, isHR = false) {
   if (!answerText || answerText === "SKIPPED" || answerText.trim().length === 0) {
     return {
       isSkipped: true,
+      isGibberish: false,
       wordCount: 0,
       charLength: 0,
       techKeywordsCount: 0,
       structureScore: 0,
       relevanceScore: 0,
       concisenessScore: 0,
-      baseScore: 2.0
+      baseScore: 0.0
     };
   }
 
@@ -46,58 +86,97 @@ export function extractAnswerFeatures(answerText, questionText, branch) {
   const wordCount = words.length;
   const charLength = text.length;
 
-  // 1. Technical Keyword Density
-  const branchDict = BRANCH_KEYWORDS[branch] || BRANCH_KEYWORDS.CSE;
-  let techCount = 0;
-  branchDict.forEach(kw => {
-    if (text.includes(kw)) techCount++;
-  });
+  // 1. Keyword density
+  let keywordMatches = 0;
+  if (isHR) {
+    HR_KEYWORDS.forEach(kw => {
+      if (text.includes(kw)) keywordMatches++;
+    });
+  } else {
+    const branchDict = BRANCH_KEYWORDS[branch] || BRANCH_KEYWORDS.CSE;
+    branchDict.forEach(kw => {
+      if (text.includes(kw)) keywordMatches++;
+    });
+    const commonTech = ["python", "react", "fastapi", "database", "api", "model", "server", "system", "performance", "scaling", "debugging", "git", "jwt", "testing", "analysis", "variance", "regression", "matrix", "linear", "statistics", "math", "code", "optimize", "tree", "array"];
+    commonTech.forEach(kw => {
+      if (text.includes(kw)) keywordMatches++;
+    });
+  }
 
-  // Additional general tech terms
-  const commonTech = ["python", "react", "fastapi", "database", "api", "model", "server", "system", "performance", "scaling", "debugging", "git", "jwt", "testing"];
-  commonTech.forEach(kw => {
-    if (text.includes(kw)) techCount++;
-  });
-
-  // 2. Structure & Organization
-  let structCount = 0;
-  STRUCTURE_KEYWORDS.forEach(kw => {
-    if (text.includes(kw)) structCount++;
-  });
-  const structureScore = Math.min(100, Math.round(structCount * 18 + (wordCount > 30 ? 30 : 15)));
-
-  // 3. Relevance to Question
-  const qWords = qText.split(/\s+/).filter(w => w.length > 3);
+  // 2. Relevance to Question
+  const qWords = qText.split(/\s+/).filter(w => w.length > 3 && !["what", "explain", "describe", "which", "with", "your", "this", "that"].includes(w));
   let overlapCount = 0;
   qWords.forEach(qw => {
     if (text.includes(qw)) overlapCount++;
   });
-  const relevanceRatio = qWords.length > 0 ? overlapCount / Math.min(qWords.length, 6) : 0.6;
-  const relevanceScore = Math.min(100, Math.round(relevanceRatio * 70 + (techCount > 0 ? 30 : 10)));
 
-  // 4. Conciseness (penalize extremely short <10 words or rambling >180 words)
+  // 3. Gibberish / Random Keyboard Mash Detection
+  const isGibberish = checkIsGibberish(text, words, keywordMatches, overlapCount);
+  if (isGibberish) {
+    return {
+      isSkipped: false,
+      isGibberish: true,
+      wordCount,
+      charLength,
+      techKeywordsCount: 0,
+      structureScore: 0,
+      relevanceScore: 0,
+      concisenessScore: 0,
+      baseScore: 0.0
+    };
+  }
+
+  if (wordCount < 4) {
+    return {
+      isSkipped: false,
+      isGibberish: false,
+      wordCount,
+      charLength,
+      techKeywordsCount: keywordMatches,
+      structureScore: 10,
+      relevanceScore: 15,
+      concisenessScore: 30,
+      baseScore: keywordMatches > 0 ? 2.5 : 1.0
+    };
+  }
+
+  // 4. Structure Score
+  let structCount = 0;
+  STRUCTURE_KEYWORDS.forEach(kw => {
+    if (text.includes(kw)) structCount++;
+  });
+  const structureScore = Math.min(100, Math.round(structCount * 22 + (wordCount > 25 ? 25 : 10)));
+
+  const relevanceRatio = qWords.length > 0 ? overlapCount / Math.min(qWords.length, 3) : (keywordMatches > 0 ? 0.7 : 0.2);
+  const relevanceScore = Math.min(100, Math.round(relevanceRatio * 60 + (keywordMatches > 0 ? 40 : 0)));
+
+  // 5. Conciseness
   let concisenessScore = 85;
-  if (wordCount < 15) concisenessScore = 45;
-  else if (wordCount < 30) concisenessScore = 72;
-  else if (wordCount > 150) concisenessScore = 68;
+  if (wordCount < 10) concisenessScore = 30;
+  else if (wordCount < 25) concisenessScore = 65;
+  else if (wordCount > 180) concisenessScore = 60;
   else concisenessScore = 92;
 
-  // Calculate Base Score (0 to 10 scale)
-  let score = 5.0;
-  if (wordCount >= 20) score += 1.5;
+  // Real Score Calculation starting from 0.0 baseline
+  let score = 0.0;
+  if (wordCount >= 10) score += 1.5;
+  if (wordCount >= 25) score += 1.5;
   if (wordCount >= 50) score += 1.0;
-  if (techCount >= 1) score += 1.0;
-  if (techCount >= 3) score += 1.0;
-  if (structCount >= 2) score += 0.8;
-  if (relevanceScore > 70) score += 0.7;
+  if (keywordMatches >= 1) score += 2.0;
+  if (keywordMatches >= 2) score += 1.5;
+  if (keywordMatches >= 4) score += 1.0;
+  if (structCount >= 1) score += 1.0;
+  if (relevanceScore > 40) score += 1.0;
+  if (relevanceScore > 70) score += 1.0;
 
-  score = Math.min(10, Math.max(3.0, score));
+  score = Math.min(10.0, Math.max(0.0, score));
 
   return {
     isSkipped: false,
+    isGibberish: false,
     wordCount,
     charLength,
-    techKeywordsCount: techCount,
+    techKeywordsCount: keywordMatches,
     structureScore,
     relevanceScore,
     concisenessScore,
@@ -110,26 +189,318 @@ export function extractAnswerFeatures(answerText, questionText, branch) {
  */
 export function computeInterviewAnalytics({
   answers = [],
+  dsaSubmissions = [],
   name = "Candidate",
   branch = "CSE",
   year = "3rd Year",
   role = "Software Engineer",
-  interviewType = "AI Mock Interview",
+  interviewType = "HR Interview",
   skills = [],
   projects = [],
-  durationMinutes = 18
+  durationMinutes = 18,
+  integrityScore = 100,
+  tabSwitches = 0
 }) {
+  const isHR = interviewType === "HR Interview";
+  const isTechOnly = interviewType === "Technical Interview";
+  const isRoboticsRound = interviewType.toLowerCase().includes("robotics");
+  const isVerilogRound = interviewType.toLowerCase().includes("verilog") || interviewType.toLowerCase().includes("rtl");
+  const isDsaRound = interviewType === "DSA Coding Round" || interviewType.includes("Coding") || isRoboticsRound || isVerilogRound || interviewType.includes("Simulation");
+  const isResumeInterview = interviewType === "AI Mock Interview" || interviewType === "Full Interview Simulation";
+  const hasResumeData = skills.length > 0 || projects.length > 0;
+
+  // ==========================================
+  // SPECIALIZED HANDLING FOR DSA CODING ROUND
+  // ==========================================
+  if (isDsaRound) {
+    const totalProblems = dsaSubmissions.length || answers.length || 5;
+    let totalScoreSum = 0;
+    let totalPassedTestCases = 0;
+    let totalTestCasesCount = 0;
+    let totalLogicScore = 0;
+    let totalSyntaxScore = 0;
+    let attemptedProblems = 0;
+    let syntaxIssuesCount = 0;
+
+    const evaluatedDsaQuestions = dsaSubmissions.map((sub, idx) => {
+      const isAttempted = sub.code && sub.code !== "SKIPPED";
+      if (isAttempted) {
+        attemptedProblems++;
+        totalScoreSum += sub.score;
+        totalPassedTestCases += sub.passedTestCases || 0;
+        totalTestCasesCount += sub.totalTestCases || 3;
+        totalLogicScore += sub.logicScore || 0;
+        totalSyntaxScore += sub.syntaxScore || 0;
+        if (sub.hasSyntaxError) syntaxIssuesCount++;
+      } else {
+        totalTestCasesCount += sub.totalTestCases || 3;
+      }
+
+      return {
+        questionNumber: idx + 1,
+        title: sub.title || `Problem ${idx + 1}`,
+        difficulty: sub.difficulty || "Medium",
+        category: "DSA Assessment",
+        question: `Solve ${sub.title || `Problem ${idx + 1}`} (${sub.difficulty || "Medium"})`,
+        answer: sub.code,
+        score: isAttempted ? (sub.score / 10) : 0,
+        scoreOutOfTen: isAttempted ? (sub.score / 10).toFixed(1) : "0.0",
+        dsaDetails: {
+          language: sub.language || "python",
+          passedTestCases: sub.passedTestCases || 0,
+          totalTestCases: sub.totalTestCases || 3,
+          logicScore: sub.logicScore || 0,
+          syntaxScore: sub.syntaxScore || 0,
+          complexity: sub.complexityDetected || "O(n)",
+          hasSyntaxError: sub.hasSyntaxError || false,
+          rating: sub.rating || "Good",
+          timeSpent: sub.timeSpentFormatted || "5m 00s"
+        },
+        whyScore: sub.feedback || "Code evaluated against logic, syntax and test cases.",
+        suggestedAnswer: "An optimal approach uses O(n) linear scan with a Hash Map or Two Pointers to minimize auxiliary space and eliminate nested loop latency."
+      };
+    });
+
+    if (attemptedProblems === 0) {
+      return {
+        overallScore: 0,
+        performanceLevel: "Needs Improvement",
+        performanceBadge: "UNATTEMPTED / ALL SKIPPED",
+        durationMinutes,
+        answeredCount: 0,
+        totalQuestions: totalProblems,
+        interviewType,
+        name,
+        branch,
+        year,
+        role,
+        integrityScore,
+        tabSwitches,
+        isDsaRound: true,
+        dsaSummary: {
+          questionsSolved: `0 / ${totalProblems}`,
+          testCasesPassed: `0 / ${totalTestCasesCount}`,
+          logicAccuracy: 0,
+          syntaxAccuracy: 0,
+          timeEfficiency: 0,
+          codeQuality: 0
+        },
+        radarSkills: [
+          { skill: "Problem Solving & Logic", score: 0, fullMark: 100 },
+          { skill: "Test Cases Correctness", score: 0, fullMark: 100 },
+          { skill: "Code Quality & Structure", score: 0, fullMark: 100 },
+          { skill: "Time & Complexity Efficiency", score: 0, fullMark: 100 },
+          { skill: "Syntax Accuracy", score: 0, fullMark: 100 },
+          { skill: "Proctor Focus & Integrity", score: integrityScore, fullMark: 100 }
+        ],
+        communicationAnalysis: {
+          clarity: 0,
+          relevance: 0,
+          structure: 0,
+          conciseness: 0,
+          vocabulary: 0
+        },
+        aiAnalysis: {
+          strengths: ["No coding submissions recorded to evaluate."],
+          weaknesses: ["All DSA problems were skipped. In coding rounds, attempting even partial logic secures points."],
+          summary: "No coding problems were submitted. Please write and execute your solutions in the editor to evaluate your algorithmic problem-solving skills."
+        },
+        technicalProficiency: [],
+        topicsToRevise: [
+          "Hash Table lookups (O(1)) and Two Pointer strategies",
+          "Sliding Window patterns on arrays and strings",
+          "Stack and Queue mechanics for bracket matching",
+          "Time & Space Complexity analysis (Big-O)"
+        ],
+        projectEvaluation: null,
+        mlReadiness: {
+          score: 0,
+          category: "LOW",
+          status: "UNATTEMPTED",
+          features: {
+            avgWordsPerAnswer: 0,
+            totalTechnicalTerms: 0,
+            structureCompliance: "0%",
+            relevanceRating: "0%"
+          }
+        },
+        evaluatedQuestions: evaluatedDsaQuestions,
+        actionPlan: {
+          priority1: {
+            topic: "Daily DSA Problem Solving",
+            priority: "High Priority",
+            action: "Practice 2-3 standard problems daily on Arrays, Hash Maps, and Two Pointers."
+          },
+          priority2: {
+            topic: "Time Complexity Optimization",
+            priority: "High Priority",
+            action: "Learn to replace O(n²) nested loops with O(n) Hash Map or sorting solutions."
+          },
+          priority3: {
+            topic: "Syntax & Edge-Case Validation",
+            priority: "Medium Priority",
+            action: "Test with boundary cases (empty inputs, single element, negative numbers) before submitting."
+          },
+          recommendedNextInterview: "DSA Coding Round — Retry Session"
+        }
+      };
+    }
+
+    const rawDsaScore = Math.round(totalScoreSum / totalProblems);
+    const overallScore = Math.min(98, Math.max(10, Math.round((rawDsaScore * 0.85) + ((integrityScore / 100) * 15))));
+
+    const avgLogic = Math.round(totalLogicScore / attemptedProblems);
+    const avgSyntax = Math.round(totalSyntaxScore / attemptedProblems);
+    const testCasesPct = Math.round((totalPassedTestCases / Math.max(1, totalTestCasesCount)) * 100);
+
+    let performanceBadge = "STRONG CODER";
+    let performanceLevel = "Strong";
+    if (overallScore >= 88) {
+      performanceBadge = "EXCEPTIONAL CODER";
+      performanceLevel = "Exceptional";
+    } else if (overallScore >= 75) {
+      performanceBadge = "VERY GOOD CODER";
+      performanceLevel = "Very Good";
+    } else if (overallScore >= 60) {
+      performanceBadge = "GOOD CODER";
+      performanceLevel = "Good";
+    } else {
+      performanceBadge = "NEEDS PRACTICE";
+      performanceLevel = "Needs Improvement";
+    }
+
+    return {
+      overallScore,
+      performanceLevel,
+      performanceBadge,
+      durationMinutes,
+      answeredCount: attemptedProblems,
+      totalQuestions: totalProblems,
+      interviewType,
+      name,
+      branch,
+      year,
+      role,
+      integrityScore,
+      tabSwitches,
+      isDsaRound: true,
+      dsaSummary: {
+        questionsSolved: `${attemptedProblems} / ${totalProblems}`,
+        testCasesPassed: `${totalPassedTestCases} / ${totalTestCasesCount}`,
+        logicAccuracy: avgLogic,
+        syntaxAccuracy: avgSyntax,
+        timeEfficiency: 82,
+        codeQuality: 86
+      },
+      radarSkills: isRoboticsRound
+        ? [
+            { skill: "Control Systems & PID Logic", score: avgLogic, fullMark: 100 },
+            { skill: "Kinematics & Math Precision", score: testCasesPct, fullMark: 100 },
+            { skill: "Sensor Signal Processing", score: 86, fullMark: 100 },
+            { skill: "Algorithmic Efficiency", score: 82, fullMark: 100 },
+            { skill: "Syntax Accuracy", score: avgSyntax, fullMark: 100 },
+            { skill: "Proctor Focus & Integrity", score: integrityScore, fullMark: 100 }
+          ]
+        : (isVerilogRound
+          ? [
+              { skill: "RTL Architecture & Logic", score: avgLogic, fullMark: 100 },
+              { skill: "Synthesis & Testbench Verification", score: testCasesPct, fullMark: 100 },
+              { skill: "Timing & Clock Domains", score: 86, fullMark: 100 },
+              { skill: "FSM & Memory Optimization", score: 82, fullMark: 100 },
+              { skill: "Verilog Syntax Accuracy", score: avgSyntax, fullMark: 100 },
+              { skill: "Proctor Focus & Integrity", score: integrityScore, fullMark: 100 }
+            ]
+          : [
+              { skill: "Problem Solving & Logic", score: avgLogic, fullMark: 100 },
+              { skill: "Test Cases Correctness", score: testCasesPct, fullMark: 100 },
+              { skill: "Code Quality & Structure", score: 86, fullMark: 100 },
+              { skill: "Time & Complexity Efficiency", score: 82, fullMark: 100 },
+              { skill: "Syntax Accuracy", score: avgSyntax, fullMark: 100 },
+              { skill: "Proctor Focus & Integrity", score: integrityScore, fullMark: 100 }
+            ]),
+      communicationAnalysis: {
+        clarity: avgLogic,
+        relevance: testCasesPct,
+        structure: 85,
+        conciseness: 90,
+        vocabulary: avgSyntax
+      },
+      aiAnalysis: {
+        strengths: [
+          `Demonstrated strong algorithmic reasoning on core data structure challenges.`,
+          `Successfully applied optimal O(n) / O(n log n) approaches to target problems.`,
+          `Maintained clean code structure and descriptive variable naming.`
+        ],
+        weaknesses: [
+          syntaxIssuesCount > 0
+            ? "Identified minor syntax punctuation/bracket issues. Ensure clean syntax before final submission."
+            : "Test edge cases (empty arrays, duplicates, negative numbers) to ensure 100% test case coverage.",
+          tabSwitches > 0
+            ? `Proctor detected ${tabSwitches} tab/window switches. Maintain full window focus during timed coding assessments.`
+            : "Review optimal space complexity trade-offs for memory-constrained problems."
+        ],
+        summary: `You achieved a ${performanceLevel} coding performance with ${avgLogic}% logic accuracy and passed ${totalPassedTestCases}/${totalTestCasesCount} test cases. ${syntaxIssuesCount > 0 ? "Your core logic is sound; simply double-check minor syntax details to lock in maximum credit." : "Great grasp of problem patterns and optimal complexities."}`
+      },
+      technicalProficiency: [
+        { topic: "Arrays & Hash Map Lookup", score: Math.min(98, avgLogic + 4) },
+        { topic: "Two Pointers & Sliding Window", score: Math.min(95, avgLogic - 2) },
+        { topic: "Stack & String Parsing", score: Math.min(96, avgLogic + 2) },
+        { topic: "Time Complexity (Big-O)", score: 84 },
+        { topic: "Edge-Case Handling", score: testCasesPct }
+      ],
+      topicsToRevise: [
+        "Sliding Window with variable window size on strings",
+        "Interval merging and boundary sorting algorithms",
+        "Two Pointer trapping algorithms & water height computations"
+      ],
+      projectEvaluation: null,
+      mlReadiness: {
+        score: overallScore,
+        category: overallScore >= 80 ? "HIGH" : "MODERATE",
+        status: overallScore >= 80 ? "INTERVIEW READY" : "DEVELOPING CODER",
+        features: {
+          avgWordsPerAnswer: 45,
+          totalTechnicalTerms: attemptedProblems * 4,
+          structureCompliance: `${avgLogic}%`,
+          relevanceRating: `${testCasesPct}%`
+        }
+      },
+      evaluatedQuestions: evaluatedDsaQuestions,
+      actionPlan: {
+        priority1: {
+          topic: "Complexity Optimization (Big-O)",
+          priority: "High Priority",
+          action: "Analyze time and space bounds before writing code. Aim for O(n) single pass solutions."
+        },
+        priority2: {
+          topic: "Edge-Case Pre-flight Checks",
+          priority: "Medium Priority",
+          action: "Mentally dry-run boundary test cases (null, 0, duplicates) to guarantee 100% test passing."
+        },
+        priority3: {
+          topic: "Timed Coding Practice",
+          priority: "Medium Priority",
+          action: "Practice solving Medium problems in under 12 minutes to build speed and accuracy under pressure."
+        },
+        recommendedNextInterview: "Full Interview Simulation — Complete 6-Round Session"
+      }
+    };
+  }
+
+  // ==========================================
+  // STANDARD INTERVIEW ANALYTICS (HR / TECH / AI MOCK / FULL)
+  // ==========================================
   const totalQuestions = answers.length || 1;
   let totalScoreSum = 0;
   let totalWords = 0;
   let answeredCount = 0;
-  let totalTechMatches = 0;
+  let totalMatches = 0;
   let totalStructureSum = 0;
   let totalRelevanceSum = 0;
   let totalConcisenessSum = 0;
 
   const evaluatedQuestions = answers.map((item, idx) => {
-    const features = extractAnswerFeatures(item.answer, item.question, branch);
+    const features = extractAnswerFeatures(item.answer, item.question, branch, isHR);
     let qScore = features.baseScore;
 
     // If follow-up answered, reward candidate with bonus
@@ -140,7 +511,7 @@ export function computeInterviewAnalytics({
     if (!features.isSkipped) {
       answeredCount++;
       totalWords += features.wordCount;
-      totalTechMatches += features.techKeywordsCount;
+      totalMatches += features.techKeywordsCount;
       totalStructureSum += features.structureScore;
       totalRelevanceSum += features.relevanceScore;
       totalConcisenessSum += features.concisenessScore;
@@ -148,23 +519,22 @@ export function computeInterviewAnalytics({
 
     totalScoreSum += qScore;
 
-    // Generate score rationale and model answer
     let rationale = "";
     if (features.isSkipped) {
-      rationale = "Question was skipped. Providing even a partial or structured logical attempt will secure baseline credit in actual interviews.";
-    } else if (qScore >= 8.5) {
-      rationale = "Exceptional response. Strong technical clarity, practical trade-offs mentioned, and confident delivery.";
-    } else if (qScore >= 7.0) {
-      rationale = "Solid answer covering core concepts. Adding specific metrics or architectural decisions would elevate it to top-tier.";
+      rationale = "Question was skipped. Skipping questions in actual interviews results in 0 score for the question.";
+    } else if (qScore >= 8.0) {
+      rationale = "Strong, well-structured response with clear examples and relevant terminology.";
+    } else if (qScore >= 6.0) {
+      rationale = "Satisfactory answer covering primary points. Could be improved with more concrete examples and structured delivery.";
     } else {
-      rationale = "Basic answer. Needs deeper technical grounding, specific terminology, and concrete examples from projects.";
+      rationale = "Brief answer lacking depth. Elaborate on your rationale, practical actions taken, and results.";
     }
 
-    const suggestedAnswer = generateSuggestedModelAnswer(item.question, branch, role, skills, projects);
+    const suggestedAnswer = generateSuggestedModelAnswer(item.question, branch, role, skills, projects, isHR);
 
     return {
       questionNumber: idx + 1,
-      category: item.category || "General",
+      category: item.category || (isHR ? "HR / Behavioral" : "Technical"),
       question: item.question,
       answer: item.answer,
       followUpQuestion: item.followUpQuestion || null,
@@ -177,11 +547,113 @@ export function computeInterviewAnalytics({
     };
   });
 
-  // Overall Score (0-100)
-  const rawAverageScore = (totalScoreSum / totalQuestions) * 10;
-  const overallScore = Math.min(98, Math.max(35, Math.round(rawAverageScore)));
+  // CASE 1: UNATTEMPTED / ALL SKIPPED
+  if (answeredCount === 0) {
+    return {
+      overallScore: 0,
+      performanceLevel: "Needs Improvement",
+      performanceBadge: "UNATTEMPTED / ALL SKIPPED",
+      durationMinutes,
+      answeredCount: 0,
+      totalQuestions,
+      interviewType,
+      name,
+      branch,
+      year,
+      role,
+      hasResumeData,
+      isHR,
+      isTechOnly,
+      integrityScore,
+      tabSwitches,
+      radarSkills: isHR
+        ? [
+            { skill: "Communication & Clarity", score: 0, fullMark: 100 },
+            { skill: "Behavioral & Situational", score: 0, fullMark: 100 },
+            { skill: "Cultural & Team Fit", score: 0, fullMark: 100 },
+            { skill: "Confidence Indicator", score: 0, fullMark: 100 },
+            { skill: "Role Motivation & Passion", score: 0, fullMark: 100 },
+            { skill: "Proctor Focus & Integrity", score: integrityScore, fullMark: 100 }
+          ]
+        : [
+            { skill: "Technical Depth", score: 0, fullMark: 100 },
+            { skill: "Problem Solving & Logic", score: 0, fullMark: 100 },
+            { skill: "Core Branch Fundamentals", score: 0, fullMark: 100 },
+            { skill: "Code & Architecture", score: 0, fullMark: 100 },
+            { skill: "Technical Communication", score: 0, fullMark: 100 },
+            { skill: "Proctor Focus & Integrity", score: integrityScore, fullMark: 100 }
+          ],
+      communicationAnalysis: {
+        clarity: 0,
+        relevance: 0,
+        structure: 0,
+        conciseness: 0,
+        vocabulary: 0
+      },
+      aiAnalysis: {
+        strengths: ["No responses were submitted to evaluate strengths."],
+        weaknesses: [
+          "All questions were skipped without attempting an answer.",
+          "In real technical and HR interviews, leaving questions unanswered leads to immediate rejection.",
+          tabSwitches > 0 ? `Proctor detected ${tabSwitches} window switches during session.` : "Attempting questions even partially demonstrates problem-solving intent."
+        ],
+        summary: `No answers were submitted during this ${interviewType} session. To receive an evaluation of your skills, competencies, and readiness, please attempt the questions in your next simulation.`
+      },
+      technicalProficiency: [],
+      topicsToRevise: isHR
+        ? [
+            "Crafting a compelling 2-minute elevator pitch (Tell me about yourself)",
+            "Structuring behavioral answers using STAR (Situation, Task, Action, Result)",
+            "Articulating 3-to-5 year career goals clearly",
+            "Demonstrating conflict resolution and cross-team collaboration"
+          ]
+        : [
+            `Core ${branch} fundamentals & standard interview patterns`,
+            "Data structures and algorithmic time/space complexities",
+            "System architecture design trade-offs and edge-case handling"
+          ],
+      projectEvaluation: null,
+      mlReadiness: {
+        score: 0,
+        category: "LOW",
+        status: "UNATTEMPTED",
+        features: {
+          avgWordsPerAnswer: 0,
+          totalTechnicalTerms: 0,
+          structureCompliance: "0%",
+          relevanceRating: "0%"
+        }
+      },
+      evaluatedQuestions,
+      actionPlan: {
+        priority1: {
+          topic: "Attempt All Interview Questions",
+          priority: "High Priority",
+          action: "Never leave questions blank. Communicate your baseline thought process to secure evaluation points."
+        },
+        priority2: {
+          topic: isHR ? "STAR Framework Practice" : "Technical Fundamentals Practice",
+          priority: "High Priority",
+          action: isHR
+            ? "Practice framing real experiences with Situation, Task, Action, and measurable Results."
+            : "Review core branch concepts and practice explaining technical trade-offs out loud."
+        },
+        priority3: {
+          topic: "Time Management & Pacing",
+          priority: "Medium Priority",
+          action: "Allocate 1-2 minutes per response to provide complete, well-reasoned answers."
+        },
+        recommendedNextInterview: `${interviewType} — Retry Session`
+      }
+    };
+  }
 
-  // Performance Level
+  // CASE 2: CANDIDATE PROVIDED ANSWERS
+  const validAnswers = Math.max(1, answeredCount);
+  const rawAverageScore = (totalScoreSum / (totalQuestions * 10)) * 100;
+  const overallScore = Math.min(98, Math.max(5, Math.round((rawAverageScore * 0.9) + ((integrityScore / 100) * 10))));
+
+  // Performance Badge
   let performanceLevel = "Strong";
   let performanceBadge = "STRONG CANDIDATE";
   if (overallScore >= 90) {
@@ -193,7 +665,7 @@ export function computeInterviewAnalytics({
   } else if (overallScore >= 70) {
     performanceLevel = "Good";
     performanceBadge = "GOOD CANDIDATE";
-  } else if (overallScore >= 60) {
+  } else if (overallScore >= 55) {
     performanceLevel = "Developing";
     performanceBadge = "DEVELOPING CANDIDATE";
   } else {
@@ -201,60 +673,99 @@ export function computeInterviewAnalytics({
     performanceBadge = "NEEDS IMPROVEMENT";
   }
 
-  // Communication Sub-Scores
-  const validAnswers = Math.max(1, answeredCount);
-  const avgClarity = Math.min(95, Math.max(50, Math.round((totalRelevanceSum / validAnswers) * 0.95 + 5)));
-  const avgRelevance = Math.min(96, Math.max(55, Math.round(totalRelevanceSum / validAnswers)));
-  const avgStructure = Math.min(92, Math.max(45, Math.round(totalStructureSum / validAnswers)));
-  const avgConciseness = Math.min(94, Math.max(50, Math.round(totalConcisenessSum / validAnswers)));
-  const avgVocabulary = Math.min(95, Math.max(55, Math.round(60 + totalTechMatches * 4)));
+  // Communication NLP Sub-Scores
+  const avgClarity = Math.min(96, Math.max(10, Math.round(totalRelevanceSum / validAnswers)));
+  const avgRelevance = Math.min(96, Math.max(10, Math.round(totalRelevanceSum / validAnswers)));
+  const avgStructure = Math.min(92, Math.max(10, Math.round(totalStructureSum / validAnswers)));
+  const avgConciseness = Math.min(94, Math.max(10, Math.round(totalConcisenessSum / validAnswers)));
+  const avgVocabulary = Math.min(95, Math.max(10, Math.round(Math.min(95, 30 + totalMatches * 6))));
 
-  // Radar Skill Competencies (0 - 100)
-  const technicalKnowledge = Math.min(96, Math.max(50, Math.round(overallScore * 0.95 + totalTechMatches * 2)));
-  const problemSolving = Math.min(95, Math.max(48, Math.round(overallScore * 0.92 + (avgStructure > 70 ? 6 : 0))));
-  const communication = Math.min(95, Math.max(52, Math.round((avgClarity + avgStructure + avgRelevance) / 3)));
-  const confidenceIndicator = Math.min(92, Math.max(45, Math.round(answeredCount >= totalQuestions * 0.8 ? 82 : 64)));
-  const projectKnowledge = Math.min(96, Math.max(55, Math.round(skills.length > 0 ? 88 + Math.min(8, totalTechMatches) : 78)));
-  const behavioral = Math.min(92, Math.max(60, Math.round(overallScore * 0.88 + 8)));
-  const roleProficiency = Math.min(95, Math.max(50, Math.round(technicalKnowledge * 0.9 + communication * 0.1)));
+  // Radar Skills based on Interview Type
+  let radarSkills = [];
+  if (isHR) {
+    radarSkills = [
+      { skill: "Communication & Clarity", score: avgClarity, fullMark: 100 },
+      { skill: "Behavioral & Situational", score: Math.min(95, Math.max(10, Math.round(overallScore * 0.95 + 4))), fullMark: 100 },
+      { skill: "Cultural & Team Fit", score: Math.min(95, Math.max(10, Math.round(overallScore * 0.92 + 5))), fullMark: 100 },
+      { skill: "Confidence Indicator", score: Math.min(95, Math.max(10, Math.round((answeredCount / totalQuestions) * 85 + 10))), fullMark: 100 },
+      { skill: "Role Motivation & Passion", score: Math.min(96, Math.max(10, Math.round(avgRelevance * 0.9 + 8))), fullMark: 100 },
+      { skill: "Proctor Focus & Integrity", score: integrityScore, fullMark: 100 }
+    ];
+  } else if (isTechOnly) {
+    radarSkills = [
+      { skill: "Technical Depth", score: Math.min(96, Math.max(10, Math.round(overallScore * 0.95 + totalMatches * 2))), fullMark: 100 },
+      { skill: "Problem Solving & Logic", score: Math.min(95, Math.max(10, Math.round(overallScore * 0.92 + (avgStructure > 60 ? 6 : 0)))), fullMark: 100 },
+      { skill: "Core Branch Fundamentals", score: Math.min(95, Math.max(10, Math.round(overallScore * 0.9 + 5))), fullMark: 100 },
+      { skill: "Code & Architecture", score: Math.min(92, Math.max(10, Math.round(overallScore * 0.88 + 4))), fullMark: 100 },
+      { skill: "Technical Communication", score: avgClarity, fullMark: 100 },
+      { skill: "Proctor Focus & Integrity", score: integrityScore, fullMark: 100 }
+    ];
+  } else {
+    // AI Mock / Full Simulation
+    radarSkills = [
+      { skill: "Technical Knowledge", score: Math.min(96, Math.max(10, Math.round(overallScore * 0.95 + totalMatches * 2))), fullMark: 100 },
+      { skill: "Problem Solving", score: Math.min(95, Math.max(10, Math.round(overallScore * 0.92 + (avgStructure > 60 ? 6 : 0)))), fullMark: 100 },
+      { skill: "Communication", score: avgClarity, fullMark: 100 },
+      { skill: "Confidence Indicator", score: Math.min(92, Math.max(10, Math.round((answeredCount / totalQuestions) * 85 + 8))), fullMark: 100 },
+      { skill: "Project & Resume Depth", score: Math.min(96, Math.max(10, Math.round(hasResumeData ? 85 + Math.min(10, totalMatches) : overallScore))), fullMark: 100 },
+      { skill: "Behavioral & Culture", score: Math.min(92, Math.max(10, Math.round(overallScore * 0.88 + 6))), fullMark: 100 },
+      { skill: "Proctor Focus & Integrity", score: integrityScore, fullMark: 100 }
+    ];
+  }
 
-  // Technical Breakdown & Topics to Revise
-  const technicalProficiency = [
-    { topic: "Data Structures & Algorithms", score: Math.min(95, Math.max(55, overallScore - 4)) },
-    { topic: "Object-Oriented Programming (OOP)", score: Math.min(96, Math.max(60, overallScore + 3)) },
-    { topic: "Database Management & SQL (DBMS)", score: Math.min(92, Math.max(50, overallScore - 12)) },
-    { topic: "Operating Systems & Networking", score: Math.min(90, Math.max(52, overallScore - 6)) },
-    { topic: "Frameworks & Architecture", score: Math.min(98, Math.max(65, overallScore + 5)) },
-    { topic: "Practical Problem Solving & Debugging", score: Math.min(94, Math.max(58, overallScore - 2)) }
-  ];
+  // Technical Domain Breakdown (Only for Technical, AI Mock, Full Interview)
+  let technicalProficiency = [];
+  if (!isHR) {
+    technicalProficiency = [
+      { topic: "Data Structures & Algorithms", score: Math.min(95, Math.max(10, overallScore - 4)) },
+      { topic: "Object-Oriented Programming (OOP)", score: Math.min(96, Math.max(10, overallScore + 3)) },
+      { topic: "Database Management & SQL (DBMS)", score: Math.min(92, Math.max(10, overallScore - 10)) },
+      { topic: "Operating Systems & Networking", score: Math.min(90, Math.max(10, overallScore - 6)) },
+      { topic: "Frameworks & Architecture", score: Math.min(98, Math.max(10, overallScore + 5)) },
+      { topic: "Practical Problem Solving & Debugging", score: Math.min(94, Math.max(10, overallScore - 2)) }
+    ];
+  }
 
-  const topicsToRevise = [
-    "Database Normalization (1NF, 2NF, 3NF & BCNF) and Indexing Performance",
-    "Process vs Thread Memory Sharing & Concurrency Pitfalls",
-    "Time & Space Complexity Proofs for Dynamic Programming & Graphs",
-    "Scalable System Architecture & Load Balancing Strategies"
-  ];
+  // Topics to Revise
+  const topicsToRevise = isHR
+    ? [
+        "Crafting a structured 2-minute elevator pitch with key career milestones",
+        "Answering situational questions with the STAR method (quantified results)",
+        "Demonstrating conflict resolution and constructive team feedback"
+      ]
+    : [
+        "Database Normalization (1NF, 2NF, 3NF & BCNF) and Indexing Performance",
+        "Process vs Thread Memory Sharing & Concurrency Pitfalls",
+        "Time & Space Complexity Proofs for Dynamic Programming & Graphs",
+        "Scalable System Architecture & Load Balancing Strategies"
+      ];
 
-  // Project & Resume Evaluation
-  const p1 = projects[0] || "AI Interview Simulator";
-  const p2 = projects[1] || "Stock Prediction Model";
-  const p3 = projects[2] || "Student Performance Analyzer";
+  // Project & Resume Evaluation (ONLY when resume/projects were uploaded)
+  let projectEvaluation = null;
+  if (isResumeInterview && projects.length > 0) {
+    const pScores = projects.map((pName, i) => ({
+      name: pName,
+      score: (Math.min(9.6, Math.max(5.0, (overallScore / 10) + (i === 0 ? 0.4 : -0.2)))).toFixed(1),
+      depth: i === 0 ? "High Architecture Depth" : "Solid Technical Implementation"
+    }));
 
-  const projectScores = [
-    { name: p1, score: (Math.min(9.6, Math.max(7.2, overallScore / 10 + 0.5))).toFixed(1), depth: "High Architecture Depth" },
-    { name: p2, score: (Math.min(9.4, Math.max(6.8, overallScore / 10 - 0.2))).toFixed(1), depth: "Solid Technical Implementation" }
-  ];
-  if (projects.length > 2) {
-    projectScores.push({ name: p3, score: (Math.min(9.5, Math.max(7.0, overallScore / 10 + 0.1))).toFixed(1), depth: "Good Domain Application" });
+    projectEvaluation = {
+      resumeUnderstanding: Math.min(96, Math.max(20, Math.round(overallScore * 0.95 + 4))),
+      skillProficiency: Math.min(95, Math.max(20, Math.round(overallScore * 0.92 + 5))),
+      projectUnderstanding: Math.min(96, Math.max(20, Math.round(overallScore * 0.9 + 6))),
+      technicalDepth: Math.min(94, Math.max(20, Math.round(overallScore))),
+      projectScores: pScores,
+      feedback: `You demonstrated familiarity with your project ${projects[0]}. Be prepared to explain low-level scaling trade-offs and error recovery in subsequent rounds.`
+    };
   }
 
   // ML Feature Vector & Interview Readiness Classification
   const avgWordsPerAns = Math.round(totalWords / validAnswers);
-  let mlReadinessScore = Math.min(98, Math.max(30, Math.round(
+  let mlReadinessScore = Math.min(98, Math.max(5, Math.round(
     overallScore * 0.6 +
     avgStructure * 0.15 +
     avgRelevance * 0.15 +
-    Math.min(100, totalTechMatches * 10) * 0.1
+    Math.min(100, totalMatches * 10) * 0.1
   )));
 
   let mlReadinessCategory = "HIGH";
@@ -265,7 +776,7 @@ export function computeInterviewAnalytics({
   } else if (mlReadinessScore >= 75) {
     mlReadinessCategory = "HIGH";
     mlReadinessStatus = "INTERVIEW READY";
-  } else if (mlReadinessScore >= 60) {
+  } else if (mlReadinessScore >= 55) {
     mlReadinessCategory = "MODERATE";
     mlReadinessStatus = "DEVELOPING CANDIDATE";
   } else {
@@ -274,39 +785,72 @@ export function computeInterviewAnalytics({
   }
 
   // Strengths & Weaknesses
-  const strengths = [
-    `Demonstrated clear familiarity with core projects (${p1}) and key stack tools.`,
-    "Maintained good technical relevance across primary conceptual questions.",
-    "Showed structured logical reasoning when addressing practical implementation scenarios."
-  ];
+  const strengths = isHR
+    ? [
+        "Provided relevant career context and aligned with target role expectations.",
+        "Demonstrated clear communication structure when explaining team scenarios.",
+        "Maintained professional tone and concise delivery."
+      ]
+    : [
+        "Demonstrated technical awareness across core fundamental topics.",
+        "Maintained relevance when addressing primary engineering concepts.",
+        "Showed logical reasoning when formulating technical solutions."
+      ];
 
-  const weaknesses = [
-    "Some technical answers could be more structured using the STAR (Situation, Task, Action, Result) framework.",
-    "System-level DBMS and concurrency topics need deeper theoretical justification.",
-    "Avoid brief single-sentence replies; substantiate claims with architectural trade-offs."
-  ];
+  const weaknesses = isHR
+    ? [
+        "Structure behavioral examples strictly with Situation, Task, Action, and measurable Results.",
+        "Elaborate more on specific personal contributions rather than general team actions.",
+        tabSwitches > 0 ? `Proctor detected ${tabSwitches} window switches during the session.` : "State concrete long-term professional milestones."
+      ]
+    : [
+        "Some technical answers lacked structured trade-off comparisons.",
+        "Deepen theoretical explanations for system architecture and database concurrency.",
+        tabSwitches > 0 ? `Proctor recorded ${tabSwitches} window switches during evaluation.` : "Quantify performance impacts with time/space complexity or latency metrics."
+      ];
 
-  const aiSummary = `You demonstrated solid project knowledge and sound fundamentals for the ${role} position. Your key strength lies in articulating practical implementation choices for ${p1}. To reach the top 5% of candidate rankings, focus on reinforcing database normalization principles and framing your problem-solving approaches with explicit algorithmic complexity bounds.`;
+  const aiSummary = isHR
+    ? `You demonstrated solid communication clarity and cultural motivation for the ${role} position. To reach top-tier hiring confidence, focus on framing your past project challenges with quantified results and clearly articulated personal initiative.`
+    : `You demonstrated sound technical fundamentals for the ${role} role in ${branch}. Your primary growth area is substantiating architecture claims with explicit algorithmic complexities and trade-off comparisons.`;
 
   // Career Action Plan
-  const actionPlan = {
-    priority1: {
-      topic: "DBMS & SQL Query Optimization",
-      priority: "High Priority",
-      action: "Revise 3NF vs BCNF normalization, B-Tree indexes, and ACID transaction isolation levels."
-    },
-    priority2: {
-      topic: "Structured Technical Communication",
-      priority: "Medium Priority",
-      action: "Adopt the STAR method for behavioral & system architecture explanations to eliminate fluff."
-    },
-    priority3: {
-      topic: "System Design & Edge-Case Handling",
-      priority: "Medium Priority",
-      action: "Practice designing scalable backend services handling concurrency, caching, and rate limiting."
-    },
-    recommendedNextInterview: "Technical Interview — Medium/Hard Difficulty"
-  };
+  const actionPlan = isHR
+    ? {
+        priority1: {
+          topic: "STAR Behavioral Framing",
+          priority: "High Priority",
+          action: "Structure your responses into Situation, Task, Action taken, and quantifiable Result."
+        },
+        priority2: {
+          topic: "Personal Impact & Leadership",
+          priority: "Medium Priority",
+          action: "Highlight specific individual contributions in team projects rather than generic group actions."
+        },
+        priority3: {
+          topic: "Long-Term Career Narrative",
+          priority: "Medium Priority",
+          action: "Articulate a clear 3-5 year technical roadmap showing continuous learning and mentorship."
+        },
+        recommendedNextInterview: "HR Interview — Advanced Behavioral Round"
+      }
+    : {
+        priority1: {
+          topic: "DBMS & SQL Query Optimization",
+          priority: "High Priority",
+          action: "Revise 3NF vs BCNF normalization, B-Tree indexes, and ACID transaction isolation levels."
+        },
+        priority2: {
+          topic: "Structured Technical Communication",
+          priority: "Medium Priority",
+          action: "Adopt clear technical framing (Definition &rarr; Project Example &rarr; Trade-offs)."
+        },
+        priority3: {
+          topic: "System Design & Edge-Case Handling",
+          priority: "Medium Priority",
+          action: "Practice designing scalable backend services handling concurrency, caching, and rate limiting."
+        },
+        recommendedNextInterview: "Technical Interview — Medium/Hard Difficulty"
+      };
 
   return {
     overallScore,
@@ -320,15 +864,12 @@ export function computeInterviewAnalytics({
     branch,
     year,
     role,
-    radarSkills: [
-      { skill: "Technical Knowledge", score: technicalKnowledge, fullMark: 100 },
-      { skill: "Problem Solving", score: problemSolving, fullMark: 100 },
-      { skill: "Communication", score: communication, fullMark: 100 },
-      { skill: "Confidence Indicator", score: confidenceIndicator, fullMark: 100 },
-      { skill: "Project & Resume Depth", score: projectKnowledge, fullMark: 100 },
-      { skill: "Behavioral & Culture", score: behavioral, fullMark: 100 },
-      { skill: "Role Proficiency", score: roleProficiency, fullMark: 100 }
-    ],
+    hasResumeData,
+    isHR,
+    isTechOnly,
+    integrityScore,
+    tabSwitches,
+    radarSkills,
     communicationAnalysis: {
       clarity: avgClarity,
       relevance: avgRelevance,
@@ -343,21 +884,14 @@ export function computeInterviewAnalytics({
     },
     technicalProficiency,
     topicsToRevise,
-    projectEvaluation: {
-      resumeUnderstanding: 92,
-      skillProficiency: technicalKnowledge,
-      projectUnderstanding: projectKnowledge,
-      technicalDepth: Math.min(94, overallScore + 2),
-      projectScores,
-      feedback: `You explained the architecture of ${p1} clearly. In future rounds, be prepared to dive deeper into database query scaling and fallback error handling.`
-    },
+    projectEvaluation,
     mlReadiness: {
       score: mlReadinessScore,
       category: mlReadinessCategory,
       status: mlReadinessStatus,
       features: {
         avgWordsPerAnswer: avgWordsPerAns,
-        totalTechnicalTerms: totalTechMatches,
+        totalTechnicalTerms: totalMatches,
         structureCompliance: `${avgStructure}%`,
         relevanceRating: `${avgRelevance}%`
       }
@@ -368,30 +902,30 @@ export function computeInterviewAnalytics({
 }
 
 /**
- * Helper to produce high-value model answers for any question
+ * High-value model answers tailored for HR or Technical questions
  */
-function generateSuggestedModelAnswer(question, branch, role, skills, projects) {
+function generateSuggestedModelAnswer(question, branch, role, skills, projects, isHR = false) {
   const qLower = (question || "").toLowerCase();
-  
-  if (qLower.includes("tell me about yourself") || qLower.includes("introduce")) {
-    return "I am a dedicated software engineer with a strong foundation in " + branch + " and practical experience in " + (skills[0] || "Python & React") + ". I recently developed projects like " + (projects[0] || "AI Interview Simulator") + " where I focused on scalable architecture and reliable user experience. I am eager to apply my technical curiosity and problem-solving skills to real-world engineering challenges.";
+
+  if (isHR || qLower.includes("tell me about yourself") || qLower.includes("introduce")) {
+    return `A high-scoring answer follows the STAR pattern: (1) Present Background: "I am an engineering student in ${branch} with hands-on focus in ${role}." (2) Key Project/Achievement: Highlight one practical project with concrete outcomes. (3) Future Alignment: "I am passionate about building reliable software and eager to contribute to high-impact engineering teams."`;
   }
 
-  if (qLower.includes("random forest") || qLower.includes("linear regression")) {
-    return "I selected Random Forest because it is an ensemble of decision trees that captures non-linear relationships and feature interactions effectively while mitigating overfitting via bagging. In comparison, Linear Regression assumes a strictly linear relationship and is sensitive to outliers and collinearity.";
+  if (qLower.includes("strength") || qLower.includes("weakness")) {
+    return "Frame your strength with a concrete project example (e.g. rapid debugging, systematic problem breakdown). Frame your weakness as an area of active learning where you have already implemented an improvement habit.";
+  }
+
+  if (qLower.includes("pressure") || qLower.includes("deadline") || qLower.includes("conflict")) {
+    return "Use the STAR method: State the challenging situation and tight timeline, describe your prioritization framework (critical path vs nice-to-have), detail proactive communication with teammates, and share the on-time delivery result.";
   }
 
   if (qLower.includes("process") && qLower.includes("thread")) {
-    return "A process is an independent execution unit with its own dedicated virtual address space and resources allocated by the OS. A thread is a lightweight execution path within a process that shares code, data, and open files with sibling threads, reducing context switching overhead but requiring synchronization (mutexes/semaphores) to prevent race conditions.";
+    return "A process is an independent execution program with its own private virtual memory space allocated by the OS. A thread is a lightweight execution unit inside a process that shares code and heap memory with sibling threads, minimizing context switching overhead but requiring synchronization (mutexes/semaphores) to prevent race conditions.";
   }
 
   if (qLower.includes("dbms") || qLower.includes("normaliz")) {
-    return "Normalization is the systematic process of organizing relational database schemas to eliminate redundant data and avoid insertion, update, and deletion anomalies. 3NF ensures that every non-prime attribute is non-transitively dependent on every candidate key, striking an optimal balance between data integrity and join performance.";
+    return "Normalization is the systematic design process of decomposing tables to eliminate redundant data and avoid insertion, update, and deletion anomalies. 3NF ensures that every non-prime attribute is non-transitively dependent on every candidate key.";
   }
 
-  if (qLower.includes("architecture") || qLower.includes("scalable")) {
-    return "For high scalability, I design modular decoupled microservices communicating asynchronously via message brokers (Kafka/RabbitMQ) with stateless REST/FastAPI endpoints behind load balancers. I implement Redis caching for hot reads and read-replicas for database query scaling.";
-  }
-
-  return "A strong answer follows the STAR pattern: (1) Clearly state the technical definition or core concept. (2) Provide a concrete example from your practical projects. (3) Address trade-offs, edge-cases, and performance metrics (time/space complexity or latency).";
+  return "A high-scoring technical answer states: (1) Core definition & mechanism, (2) Real-world practical application or project example, (3) Performance trade-offs (time/space complexity, scalability, or edge cases).";
 }
