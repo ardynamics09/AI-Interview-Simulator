@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import axios from "axios";
 import { questionBank } from "../data/questions";
 
 function LoadingScreen() {
@@ -258,9 +257,13 @@ function LoadingScreen() {
       let finalQuestions = [];
 
       try {
-        const response = await axios.post(
-          `${API_URL}/generate-questions`,
-          {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 7000);
+
+        const response = await fetch(`${API_URL}/generate-questions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
             name: interviewData.name,
             branch: interviewData.branch,
             year: interviewData.year,
@@ -269,17 +272,20 @@ function LoadingScreen() {
             resumeText: interviewData.resumeText || "",
             skills: interviewData.skills || [],
             projects: interviewData.projects || []
-          },
-          { timeout: 7000 }
-        );
+          }),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        const data = await response.json();
 
         if (
-          response.data &&
-          response.data.success &&
-          Array.isArray(response.data.questions) &&
-          response.data.questions.length > 0
+          data &&
+          data.success &&
+          Array.isArray(data.questions) &&
+          data.questions.length > 0
         ) {
-          finalQuestions = response.data.questions;
+          finalQuestions = data.questions;
           setAiStatus("AI ENGINE ONLINE");
         } else {
           throw new Error("Invalid response from server");
