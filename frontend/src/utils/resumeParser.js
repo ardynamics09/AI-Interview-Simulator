@@ -143,3 +143,75 @@ export function analyzeResumeData(rawText, candidateName = "") {
     rawText: rawText.slice(0, 3000) // bounded text
   };
 }
+
+/**
+ * Extract Candidate Name from Resume Text
+ */
+export function extractCandidateNameFromResume(rawText) {
+  if (!rawText || rawText.trim().length === 0) return null;
+
+  const lines = rawText
+    .split(/\r?\n/)
+    .map(l => l.trim())
+    .filter(l => l.length > 0);
+
+  const noisePattern = /^(curriculum\s+vitae|resume|cv|biodata|contact|email|phone|address|education|skills|experience|summary|profile|about\s+me)/i;
+
+  for (let i = 0; i < Math.min(12, lines.length); i++) {
+    const line = lines[i];
+    if (noisePattern.test(line)) continue;
+    if (line.includes("@") || line.includes("http") || line.includes("www.") || /\d{5,}/.test(line)) continue;
+
+    const namePrefixMatch = line.match(/(?:name|candidate\s*name)\s*[:\-]\s*([A-Za-z\s]{2,30})/i);
+    if (namePrefixMatch && namePrefixMatch[1]) {
+      const clean = namePrefixMatch[1].trim();
+      if (clean.split(/\s+/).length <= 4) return clean;
+    }
+
+    const words = line.split(/\s+/).filter(w => /^[A-Za-z.]+$/.test(w));
+    if (words.length >= 1 && words.length <= 4 && line.length <= 35) {
+      const candidateStr = words.join(" ");
+      if (!/^(software\s+engineer|web\s+developer|student|b\.?tech|computer\s+science|fresher)/i.test(candidateStr)) {
+        return candidateStr;
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Validates if the entered name matches the name found in the resume
+ */
+export function validateCandidateNameWithResume(enteredName, rawResumeText, extractedResumeName) {
+  if (!enteredName || !rawResumeText) {
+    return { isMatch: true, resumeName: null, warningMessage: "" };
+  }
+
+  const resumeName = extractedResumeName || extractCandidateNameFromResume(rawResumeText);
+  if (!resumeName) {
+    return { isMatch: true, resumeName: null, warningMessage: "" };
+  }
+
+  const enteredTokens = enteredName.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter(Boolean);
+  const resumeTokens = resumeName.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter(Boolean);
+  const rawLower = rawResumeText.toLowerCase();
+
+  const tokenOverlap = enteredTokens.some(token => token.length >= 2 && resumeTokens.some(rt => rt.includes(token) || token.includes(rt)));
+  const topText = rawLower.slice(0, 800);
+  const existsInTopResume = enteredTokens.some(token => token.length >= 2 && topText.includes(token));
+
+  if (tokenOverlap || existsInTopResume) {
+    return {
+      isMatch: true,
+      resumeName,
+      warningMessage: ""
+    };
+  }
+
+  return {
+    isMatch: false,
+    resumeName,
+    warningMessage: `Sorry, but your name does not match with your resume ("${resumeName}"). Please correct your name as per your resume to continue.`
+  };
+}

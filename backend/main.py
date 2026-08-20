@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from dotenv import load_dotenv
+import database
+from admin_routes import router as admin_router
 import os
 import random
 
@@ -41,6 +43,56 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# Initialize SQLite database
+database.init_db()
+
+# Mount Admin Routes
+app.include_router(admin_router)
+
+# ==============================
+# Public Data Sync Endpoints (Sync candidate test records to DB)
+# ==============================
+
+class UserProfileSync(BaseModel):
+    userId: str
+    name: str
+    branch: Optional[str] = "CSE"
+    year: Optional[str] = "3rd Year"
+    role: Optional[str] = "Software Engineer"
+
+class InterviewRecordSync(BaseModel):
+    id: Optional[str] = None
+    userId: Optional[str] = None
+    user_id: Optional[str] = None
+    name: Optional[str] = "Candidate"
+    branch: Optional[str] = "CSE"
+    year: Optional[str] = "3rd Year"
+    role: Optional[str] = "Software Engineer"
+    interviewType: Optional[str] = "Technical Interview"
+    overallScore: Optional[float] = 0.0
+    overall_score: Optional[float] = None
+    performanceLevel: Optional[str] = "Developing"
+    durationMinutes: Optional[int] = 15
+    integrityScore: Optional[float] = 100.0
+    tabSwitches: Optional[int] = 0
+    radarSkills: Optional[List[Any]] = []
+    communicationAnalysis: Optional[Dict[str, Any]] = {}
+    aiAnalysis: Optional[Dict[str, Any]] = {}
+    topicsToRevise: Optional[List[str]] = []
+    evaluatedQuestions: Optional[List[Any]] = []
+    dsaSummary: Optional[Dict[str, Any]] = {}
+    dateIso: Optional[str] = None
+
+@app.post("/api/users/profile")
+def sync_user_profile(data: UserProfileSync):
+    res = database.upsert_user(data.userId, data.name, data.branch, data.year, data.role)
+    return {"success": True, "user": res}
+
+@app.post("/api/interviews/record")
+def sync_interview_record(data: InterviewRecordSync):
+    test_id = database.insert_interview_record(data.model_dump())
+    return {"success": True, "testId": test_id}
+
 
 # ==============================
 # Request Models
@@ -314,6 +366,8 @@ def get_technical_fallback(data: InterviewRequest):
             "What is an interrupt in embedded systems and how does the CPU handle interrupt service routines (ISR)?",
             "Explain the Nyquist-Shannon sampling theorem and its significance in digital signal processing."
         ]
+    }
+
     # Role-specific overrides for high-precision technical questioning
     role_lower = data.role.lower()
     if "robotics" in role_lower:
@@ -545,4 +599,4 @@ def generate_followup(data: FollowUpRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

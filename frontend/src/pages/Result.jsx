@@ -276,6 +276,87 @@ function Result() {
           </div>
         </div>
 
+
+        {/* ========================================= */}
+        {/* INTERVIEW READINESS & DIAGNOSTIC VERDICT */}
+        {/* ========================================= */}
+        <div
+          style={{
+            background: "linear-gradient(135deg, rgba(22, 27, 34, 0.95), rgba(14, 18, 26, 0.98))",
+            borderRadius: "16px",
+            border: `1px solid ${analytics.interviewReadiness?.badgeColor || scoreColor}55`,
+            padding: "24px 22px",
+            marginBottom: "24px",
+            boxShadow: "0 10px 30px rgba(0, 0, 0, 0.4)",
+            textAlign: "left",
+            position: "relative",
+            overflow: "hidden"
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "14px", marginBottom: "12px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{ fontSize: "24px" }}>🎯</span>
+              <h2 style={{ margin: 0, fontSize: "18px", color: "#fff", fontWeight: "700" }}>
+                Interview Readiness Assessment
+              </h2>
+            </div>
+            
+            <div
+              style={{
+                background: `${analytics.interviewReadiness?.badgeColor || scoreColor}18`,
+                border: `1px solid ${analytics.interviewReadiness?.badgeColor || scoreColor}`,
+                color: analytics.interviewReadiness?.badgeColor || scoreColor,
+                padding: "6px 16px",
+                borderRadius: "20px",
+                fontSize: "14px",
+                fontWeight: "bold",
+                boxShadow: `0 2px 10px ${analytics.interviewReadiness?.badgeColor || scoreColor}22`
+              }}
+            >
+              {analytics.interviewReadiness?.headline || `You are ${analytics.overallScore}% ready for the interview`}
+            </div>
+          </div>
+
+          {/* Readiness Percentage Bar */}
+          <div style={{ margin: "14px 0 16px 0" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#888", marginBottom: "6px" }}>
+              <span>Readiness Gauge</span>
+              <span style={{ fontWeight: "bold", color: analytics.interviewReadiness?.badgeColor || scoreColor }}>
+                {analytics.interviewReadiness?.readinessPercentage || analytics.overallScore}%
+              </span>
+            </div>
+            <div style={{ height: "8px", borderRadius: "4px", background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+              <div
+                style={{
+                  width: `${Math.max(5, analytics.interviewReadiness?.readinessPercentage || analytics.overallScore)}%`,
+                  height: "100%",
+                  background: `linear-gradient(90deg, #2196f3, ${analytics.interviewReadiness?.badgeColor || scoreColor})`,
+                  borderRadius: "4px"
+                }}
+              />
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: "rgba(255, 255, 255, 0.03)",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
+              borderRadius: "12px",
+              padding: "16px 18px"
+            }}
+          >
+            <p style={{ margin: "0 0 10px 0", fontSize: "14px", color: "#e0e0e0", lineHeight: "1.6" }}>
+              💬 <b>Diagnostic Feedback:</b> {analytics.interviewReadiness?.diagnosticReason || (analytics.overallScore === 0 ? "No meaningful responses were submitted. Type or speak structured answers to evaluate your readiness." : "Answers lacked technical depth or structured examples. Review core fundamentals.")}
+            </p>
+
+            {(analytics.interviewReadiness?.actionRecommendation || "Prepare more to increase your chance.") && (
+              <p style={{ margin: 0, fontSize: "13px", color: "#64b5f6", fontWeight: "600", display: "flex", alignItems: "center", gap: "6px" }}>
+                <span>🚀</span> <span><b>Recommendation:</b> {analytics.interviewReadiness?.actionRecommendation || "Practice mock sessions and revise core topics to increase your selection chance."}</span>
+              </p>
+            )}
+          </div>
+        </div>
+
         {/* ========================================= */}
         {/* DSA / VERILOG / ROBOTICS SUMMARY METRICS */}
         {/* ========================================= */}

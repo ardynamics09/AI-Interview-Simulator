@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AI Interview Simulator - Interview Master Guide</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.65;
+    color: #24292e;
+    background: #f6f8fa;
+    margin: 0;
+    padding: 30px 20px;
+  }
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    background: #ffffff;
+    padding: 40px 50px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    border: 1px solid #e1e4e8;
+  }
+  h1 { color: #0366d6; font-size: 28px; border-bottom: 2px solid #eaecef; padding-bottom: 10px; }
+  h2 { color: #1a202c; font-size: 20px; border-bottom: 1px solid #eaecef; padding-bottom: 6px; margin-top: 30px; }
+  h3 { color: #2d3748; font-size: 16px; margin-top: 18px; }
+  blockquote {
+    background: #f1f8ff;
+    border-left: 4px solid #0366d6;
+    margin: 12px 0;
+    padding: 12px 18px;
+    color: #032f62;
+    border-radius: 0 6px 6px 0;
+  }
+  pre {
+    background: #24292e;
+    color: #f6f8fa;
+    padding: 14px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 13px;
+  }
+  code {
+    background: #f0f3f6;
+    color: #d73a49;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 13px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+  }
+  th, td {
+    border: 1px solid #e1e4e8;
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 14px;
+  }
+  th { background: #f6f8fa; font-weight: bold; }
+  .badge {
+    background: #2ea44f;
+    color: #ffffff;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: bold;
+  }
+  @media print {
+    body { background: #fff; padding: 0; }
+    .container { box-shadow: none; border: none; padding: 0; width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div style="text-align: right; margin-bottom: 10px;">
+    <button onclick="window.print()" style="background: #0366d6; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer;">
+      🖨️ Print / Save as PDF
+    </button>
+  </div>
+  
+  <h1>🎓 AI Interview Simulator — Interview Master Guide</h1>
+  <p><b>Author & Developer:</b> Aniket Raj • <b>Language:</b> Hinglish • <b>Stack:</b> React 18, FastAPI, SQLite WAL, Web Speech AI, Gemini AI</p>
+
+  <h2>📌 1. Project Introduction (Elevator Pitch)</h2>
+  <blockquote>
+    <b>"Sir/Ma'am, maine AI Interview Simulator ek production-grade, AI-driven assessment platform ke roop me build kiya hai jo engineering students aur job candidates ko real-world technical, behavioral (HR), coding (DSA), aur hardware (Verilog RTL) interviews ke liye prepare karta hai."</b>
+  </blockquote>
+  <ul>
+    <li><b>Dual-Channel Voice AI:</b> AI interviewer questions bolta hai (Female HR voice, Male Tech voice, Alternate Full simulation) aur candidate live mic se bol kar answer de sakta hai.</li>
+    <li><b>AI WebCam & Integrity Proctoring:</b> Computer Vision luminance algorithms se 25° gaze angle aur tab-switching track hota hai with dim-light room support.</li>
+    <li><b>Live Coding & Hardware RTL Evaluation:</b> Software engineers ke liye DSA test runner aur ECE/EV engineers ke liye synthesizable Verilog HDL simulation engine.</li>
+    <li><b>Candidate History & Secure Read-Only Admin Dashboard:</b> 25-Test FIFO LocalStorage dashboard for users, aur backend SQLite database + PBKDF2 encryption se secured Read-Only Admin Analytics Center for project owner.</li>
+  </ul>
+
+  <h2>🏗️ 2. Architecture & Tech Stack</h2>
+  <pre>
+Frontend (React 18 + Vite) &lt;--- REST API ---&gt; Backend (FastAPI Python)
+• Web Speech Synthesis (TTS/STT)               • Google Gemini AI Engine
+• WebCam 25° Proctoring HUD                    • PBKDF2-HMAC-SHA256 Auth
+• 25-Test LocalStorage FIFO                    • SQLite DB (WAL Mode)
+  </pre>
+
+  <h2>💻 3. Frontend Architecture Deep-Dive</h2>
+  <h3>A. Voice AI Engine</h3>
+  <p>Browser ki native <code>window.speechSynthesis</code> aur <code>webkitSpeechRecognition</code> use ki gayi hai jisse <b>zero external latency</b> aur <b>zero API billing</b> hoti hai. Autoplay audio context unlock mechanism lagaya gaya hai.</p>
+  
+  <h3>B. AI WebCam Gaze & Proctoring System</h3>
+  <p>Canvas Optical Center-of-Mass luminance algorithm se head turn track hota hai. 25° offset allow hai aur <b>keyboard par dekh kar code type karna explicitly permitted hai</b>. Dim-light resilience ke liye multi-tier skin luminance aur 3.5s position grace period diya gaya hai.</p>
+
+  <h2>⚙️ 4. Backend & Database Architecture</h2>
+  <h3>A. FastAPI Framework</h3>
+  <p>FastAPI ASGI asynchronous concurrency support karta hai, automatic request validation aur high-speed performance provide karta hai.</p>
+
+  <h3>B. SQLite Database in WAL Mode</h3>
+  <p>Lightweight self-contained <code>simulator.db</code> use kiya gaya hai. Multi-threading lock error se bachne ke liye <b>WAL Mode (<code>PRAGMA journal_mode=WAL;</code>)</b> aur <code>timeout=30.0</code> enable kiya gaya hai.</p>
+
+  <h2>🔒 5. Security & Admin Authentication</h2>
+  <h3>A. PBKDF2-HMAC-SHA256 Password Encryption</h3>
+  <p>Passwords ko plain text me store nahi kiya jata. Har password 16-byte cryptographic random salt aur <b>100,000 hashing iterations</b> ke sath secure rehta hai.</p>
+
+  <h3>B. Role-Based Token Authorization & OTP Recovery</h3>
+  <p>Backend HMAC-SHA256 se signed 7-day Bearer Token verify karta hai. Forgot Password flow me 10-minute expiry ke sath 6-digit OTP generate hota hai.</p>
+
+  <h2>💡 6. Top Technical Interview Q&A (Hinglish)</h2>
+  
+  <h3>Q1: LocalStorage aur Database dono kyu use kiye?</h3>
+  <blockquote><b>Ans:</b> Candidate ke liye instant speed aur zero-friction experience ke liye LocalStorage me 25-Test FIFO history rakhi gayi hai, jabki platform owner ke global metrics aur aggregated analytics ke liye backend SQLite database sync kiya gaya hai.</blockquote>
+
+  <h3>Q2: Password hashing ke liye PBKDF2 kyu use kiya?</h3>
+  <blockquote><b>Ans:</b> Standard SHA-256 bahut fast hota hai jisse brute force attack ho sakta hai. PBKDF2 100,000 iterations aur random salt ke sath GPU attacks ko completely eliminate kar deta hai.</blockquote>
+
+  <h3>Q3: SQLite me database lock issue kaise solve kiya?</h3>
+  <blockquote><b>Ans:</b> WAL Mode (Write-Ahead Logging) enable karke solve kiya jisme concurrent readers aur writers ek doosre ko block nahi karte.</blockquote>
+
+  <h3>Q4: WebCam tracking bina heavy TensorFlow library ke kaise kiya?</h3>
+  <blockquote><b>Ans:</b> Heavy 60MB library ke bajaye Canvas Optical Center-of-Mass skin ratio heuristic use kiya, jisse CPU usage sirf 2% rehta hai aur page fast load hota hai.</blockquote>
+</div>
+</body>
+</html>

@@ -188,6 +188,26 @@ function Dashboard() {
             >
               + Start New Test
             </button>
+
+            <button
+              onClick={() => navigate("/admin/login")}
+              style={{
+                background: "rgba(156, 39, 176, 0.15)",
+                border: "1px solid rgba(156, 39, 176, 0.4)",
+                color: "#ce93d8",
+                padding: "8px 14px",
+                borderRadius: "8px",
+                fontSize: "13px",
+                fontWeight: "bold",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px"
+              }}
+            >
+              <span>🛡️</span>
+              <span>Admin</span>
+            </button>
           </div>
         </div>
 

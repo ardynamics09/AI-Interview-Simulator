@@ -1,6 +1,6 @@
 /**
- * Voice Audio Utilities (TTS & STT)
- * Uses native Web Speech API for zero-latency in-browser Speech Synthesis & Recognition
+ * Ultra-Realistic Human Voice AI Audio Utilities (TTS & STT)
+ * Prioritizes high-fidelity Neural and Natural voices in Chrome, Edge, Safari and Firefox.
  */
 
 let cachedVoices = [];
@@ -21,7 +21,89 @@ if (typeof window !== "undefined") {
 }
 
 /**
- * Speaks text aloud in male or female voice with robust browser autoplay unlock
+ * Finds the most natural, human-sounding voice available in the client browser
+ */
+function findBestVoice(isFemale) {
+  const voices = window.speechSynthesis.getVoices();
+  const available = voices.length > 0 ? voices : cachedVoices;
+
+  if (available.length === 0) return null;
+
+  if (isFemale) {
+    // 1. Natural / Neural High-Def Female Voices
+    const priorityFemale = [
+      "microsoft jenny online (natural)",
+      "microsoft aria online (natural)",
+      "microsoft ava online (natural)",
+      "microsoft emma online (natural)",
+      "google uk english female",
+      "google us english",
+      "samantha",
+      "karen",
+      "victoria",
+      "zira",
+      "catherine",
+      "fiona",
+      "veena"
+    ];
+
+    for (const p of priorityFemale) {
+      const match = available.find(v => v.name.toLowerCase().includes(p) && v.lang.startsWith("en"));
+      if (match) return match;
+    }
+
+    // Generic English Female Fallback
+    const genericFemale = available.find(v => v.lang.startsWith("en") && (v.name.toLowerCase().includes("female") || v.name.toLowerCase().includes("woman")));
+    if (genericFemale) return genericFemale;
+
+  } else {
+    // 1. Natural / Neural High-Def Male Voices
+    const priorityMale = [
+      "microsoft guy online (natural)",
+      "microsoft christopher online (natural)",
+      "microsoft ryan online (natural)",
+      "microsoft andrew online (natural)",
+      "microsoft brian online (natural)",
+      "google uk english male",
+      "google us english",
+      "alex",
+      "daniel",
+      "david",
+      "george",
+      "mark",
+      "oliver",
+      "rishi"
+    ];
+
+    for (const p of priorityMale) {
+      const match = available.find(v => v.name.toLowerCase().includes(p) && v.lang.startsWith("en"));
+      if (match) return match;
+    }
+
+    // Generic English Male Fallback
+    const genericMale = available.find(v => v.lang.startsWith("en") && (v.name.toLowerCase().includes("male") || v.name.toLowerCase().includes("man")));
+    if (genericMale) return genericMale;
+  }
+
+  // Any English voice fallback
+  return available.find(v => v.lang.startsWith("en")) || available[0] || null;
+}
+
+/**
+ * Normalizes question text into clean, conversational human speech with natural cadence
+ */
+function prepareSpeechText(text) {
+  return text
+    .replace(/[`*#_~]/g, "")
+    .replace(/Q\d+:\s*/i, "")
+    .replace(/Round\s*\d+:\s*/i, "")
+    .replace(/http\S+/g, "")
+    .replace(/([.?!])\s+/g, "$1 ")
+    .trim();
+}
+
+/**
+ * Speaks text aloud in ultra-realistic human male or female tone
  * @param {string} text - Text to speak
  * @param {'male' | 'female'} gender - Desired voice gender
  * @param {Function} [onStart] - Callback when speech starts
@@ -33,7 +115,7 @@ export function speakText(text, gender = "male", onStart, onEnd) {
     return;
   }
 
-  // Cancel any ongoing speech & resume paused state
+  // Cancel any ongoing speech & resume paused audio contexts
   window.speechSynthesis.cancel();
   if (window.speechSynthesis.paused) {
     window.speechSynthesis.resume();
@@ -44,55 +126,24 @@ export function speakText(text, gender = "male", onStart, onEnd) {
     return;
   }
 
-  // Strip markdown symbols and backticks for clean speech
-  const cleanText = text
-    .replace(/[`*#_~]/g, "")
-    .replace(/\bQ\d+:\s*/i, "")
-    .replace(/\bRound\s*\d+:\s*/i, "")
-    .trim();
-
-  const utterance = new SpeechSynthesisUtterance(cleanText);
-  utterance.rate = 0.98;
-
-  const voices = window.speechSynthesis.getVoices();
-  if (voices.length > 0) {
-    cachedVoices = voices;
-  }
-
+  const cleanText = prepareSpeechText(text);
   const isFemale = gender.toLowerCase() === "female";
 
+  const utterance = new SpeechSynthesisUtterance(cleanText);
+
+  // Natural Human Conversational Acoustics
   if (isFemale) {
-    utterance.pitch = 1.15;
-    const femaleVoice = cachedVoices.find((v) => {
-      const name = v.name.toLowerCase();
-      return (
-        name.includes("female") ||
-        name.includes("zira") ||
-        name.includes("samantha") ||
-        name.includes("victoria") ||
-        name.includes("karen") ||
-        name.includes("catherine") ||
-        name.includes("heera") ||
-        name.includes("google uk english female")
-      );
-    });
-    if (femaleVoice) utterance.voice = femaleVoice;
+    utterance.pitch = 1.02; // Warm, professional human female pitch
+    utterance.rate = 0.96;  // Clear, thoughtful pacing
   } else {
-    utterance.pitch = 0.92;
-    const maleVoice = cachedVoices.find((v) => {
-      const name = v.name.toLowerCase();
-      return (
-        name.includes("male") ||
-        name.includes("david") ||
-        name.includes("george") ||
-        name.includes("mark") ||
-        name.includes("alex") ||
-        name.includes("guy") ||
-        name.includes("google us english") ||
-        name.includes("google uk english male")
-      );
-    });
-    if (maleVoice) utterance.voice = maleVoice;
+    utterance.pitch = 0.98; // Grounded, professional human male pitch
+    utterance.rate = 0.96;  // Clear, confident pacing
+  }
+
+  const selectedVoice = findBestVoice(isFemale);
+  if (selectedVoice) {
+    utterance.voice = selectedVoice;
+    utterance.lang = selectedVoice.lang || "en-US";
   }
 
   if (onStart) utterance.onstart = onStart;
@@ -104,10 +155,9 @@ export function speakText(text, gender = "male", onStart, onEnd) {
     };
   }
 
-  // Ensure speech synthesis is active
+  // Speak with browser resume lock
   window.speechSynthesis.speak(utterance);
 
-  // Chrome bug fix: sometimes speechSynthesis pauses after speaking
   if (window.speechSynthesis.paused) {
     window.speechSynthesis.resume();
   }

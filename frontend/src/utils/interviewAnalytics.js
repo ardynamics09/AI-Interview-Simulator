@@ -1,4 +1,77 @@
 /**
+ * Compute Exact Interview Readiness Percentage and Diagnostic Reason
+ */
+export function computeInterviewReadiness(overallScore, commScore = 0, techScore = 0, answeredCount = 0, meaningfulCount = 0, totalQuestions = 1, isDsa = false, hasGibberish = false) {
+  if (answeredCount === 0 || meaningfulCount === 0 || overallScore === 0) {
+    const isGibberishAttempt = hasGibberish || (answeredCount > 0 && meaningfulCount === 0);
+    return {
+      readinessPercentage: 0,
+      headline: "You are 0% ready for the interview",
+      diagnosticReason: isGibberishAttempt 
+        ? "Responses contained random characters / gibberish without meaningful technical or behavioral content. Zero marks were awarded."
+        : "No responses were submitted. Leaving questions unanswered in real interviews leads to immediate rejection.",
+      actionRecommendation: "Type or speak meaningful answers explaining your thoughts, projects, and domain concepts to evaluate your interview readiness.",
+      badgeColor: "#ff5252"
+    };
+  }
+
+  let readinessPercentage = Math.round(overallScore);
+  readinessPercentage = Math.max(0, Math.min(98, readinessPercentage));
+
+  let headline = `You are ${readinessPercentage}% ready for the interview`;
+  let diagnosticReason = "";
+  let actionRecommendation = "";
+  let badgeColor = "#ff5252";
+
+  if (readinessPercentage >= 85) {
+    badgeColor = "#00e676";
+    if (commScore >= 75 && techScore >= 75) {
+      diagnosticReason = "Outstanding technical mastery and articulate communication. You clearly explain trade-offs and structure your responses like a senior engineer.";
+      actionRecommendation = "You are in the top tier! Keep practicing mock interviews to maintain peak sharpness and confidence.";
+    } else {
+      diagnosticReason = "Strong interview performance across all competency areas with high clarity and relevant problem-solving logic.";
+      actionRecommendation = "Refine edge-case discussions and time management to secure maximum offer conversion.";
+    }
+  } else if (readinessPercentage >= 70) {
+    badgeColor = "#2196f3";
+    if (commScore >= 65 && techScore < 55) {
+      diagnosticReason = "You have good communication skill but lack of depth in your core topics. Prepare more to increase your chance.";
+      actionRecommendation = "Dive deeper into core branch fundamentals and technical architecture trade-offs.";
+    } else if (techScore >= 70 && commScore < 55) {
+      diagnosticReason = "You have strong technical fundamentals, but need to improve your verbal communication and structure your answers more clearly using concrete examples.";
+      actionRecommendation = "Practice using the STAR framework (Situation, Task, Action, Result) for structured delivery.";
+    } else {
+      diagnosticReason = "Solid baseline understanding. Your core answers are correct, but adding specific project metrics and architecture trade-offs will push you into top tier.";
+      actionRecommendation = "Prepare more in-depth real-world scenarios to increase your chances.";
+    }
+  } else if (readinessPercentage >= 45) {
+    badgeColor = "#ffb74d";
+    if (commScore >= 55 && techScore < 40) {
+      diagnosticReason = "You have decent basic communication, but lack technical depth in your core topics. Prepare more to increase your chance.";
+      actionRecommendation = "Focus on revising fundamental branch concepts and practice technical problem explanations.";
+    } else if (techScore >= 55 && commScore < 40) {
+      diagnosticReason = "You have foundational technical knowledge, but struggle to express complex concepts fluently under interview pressure.";
+      actionRecommendation = "Practice speaking your thought process aloud while solving problems.";
+    } else {
+      diagnosticReason = "Moderate interview readiness. You understand basic terminology, but responses lack depth and structured reasoning.";
+      actionRecommendation = "Spend more time reviewing core technical topics and practicing with mock interviews.";
+    }
+  } else {
+    badgeColor = "#ff5252";
+    diagnosticReason = "Significant preparation needed. Answers were very brief or lacked foundational technical and domain knowledge.";
+    actionRecommendation = "Review branch syllabus thoroughly, study standard interview question banks, and retry simulations.";
+  }
+
+  return {
+    readinessPercentage,
+    headline,
+    diagnosticReason,
+    actionRecommendation,
+    badgeColor
+  };
+}
+
+/**
  * Interview Analytics & ML Feature Extraction Engine
  * Accurate, math-driven scoring and interview-type specialization.
  */
@@ -277,6 +350,7 @@ export function computeInterviewAnalytics({
         integrityScore,
         tabSwitches,
         isDsaRound: true,
+        interviewReadiness: computeInterviewReadiness(0, 0, 0, 0, totalProblems, true),
         dsaSummary: {
           questionsSolved: `0 / ${totalProblems}`,
           testCasesPassed: `0 / ${totalTestCasesCount}`,
@@ -313,7 +387,8 @@ export function computeInterviewAnalytics({
           "Time & Space Complexity analysis (Big-O)"
         ],
         projectEvaluation: null,
-        mlReadiness: {
+        interviewReadiness: computeInterviewReadiness(overallScore, isHR ? (avgClarity) : (avgVocabulary), (overallScore), answeredCount, meaningfulAnswersCount, totalQuestions, false, gibberishCount > 0),
+      mlReadiness: {
           score: 0,
           category: "LOW",
           status: "UNATTEMPTED",
@@ -498,6 +573,8 @@ export function computeInterviewAnalytics({
   let totalStructureSum = 0;
   let totalRelevanceSum = 0;
   let totalConcisenessSum = 0;
+  let meaningfulAnswersCount = 0;
+  let gibberishCount = 0;
 
   const evaluatedQuestions = answers.map((item, idx) => {
     const features = extractAnswerFeatures(item.answer, item.question, branch, isHR);
@@ -510,17 +587,24 @@ export function computeInterviewAnalytics({
 
     if (!features.isSkipped) {
       answeredCount++;
-      totalWords += features.wordCount;
-      totalMatches += features.techKeywordsCount;
-      totalStructureSum += features.structureScore;
-      totalRelevanceSum += features.relevanceScore;
-      totalConcisenessSum += features.concisenessScore;
+      if (!features.isGibberish && features.wordCount >= 2 && qScore > 0) {
+        meaningfulAnswersCount++;
+        totalWords += features.wordCount;
+        totalMatches += features.techKeywordsCount;
+        totalStructureSum += features.structureScore;
+        totalRelevanceSum += features.relevanceScore;
+        totalConcisenessSum += features.concisenessScore;
+      } else {
+        gibberishCount++;
+      }
     }
 
     totalScoreSum += qScore;
 
     let rationale = "";
-    if (features.isSkipped) {
+    if (features.isGibberish) {
+      rationale = "Answer contains random characters / keyboard mash without meaningful English words or technical context (0.0/10).";
+    } else if (features.isSkipped) {
       rationale = "Question was skipped. Skipping questions in actual interviews results in 0 score for the question.";
     } else if (qScore >= 8.0) {
       rationale = "Strong, well-structured response with clear examples and relevant terminology.";
@@ -548,7 +632,7 @@ export function computeInterviewAnalytics({
   });
 
   // CASE 1: UNATTEMPTED / ALL SKIPPED
-  if (answeredCount === 0) {
+  if (answeredCount === 0 || meaningfulAnswersCount === 0 || totalScoreSum === 0) {
     return {
       overallScore: 0,
       performanceLevel: "Needs Improvement",
@@ -590,10 +674,11 @@ export function computeInterviewAnalytics({
         conciseness: 0,
         vocabulary: 0
       },
+      interviewReadiness: computeInterviewReadiness(0, 0, 0, answeredCount, meaningfulAnswersCount, totalQuestions, false, gibberishCount > 0),
       aiAnalysis: {
-        strengths: ["No responses were submitted to evaluate strengths."],
+        strengths: ["No meaningful responses were submitted to evaluate strengths."],
         weaknesses: [
-          "All questions were skipped without attempting an answer.",
+          gibberishCount > 0 ? "Answers contained random characters or keyboard mash (0/10 marks awarded)." : "All questions were skipped without attempting an answer.",
           "In real technical and HR interviews, leaving questions unanswered leads to immediate rejection.",
           tabSwitches > 0 ? `Proctor detected ${tabSwitches} window switches during session.` : "Attempting questions even partially demonstrates problem-solving intent."
         ],
@@ -684,11 +769,11 @@ export function computeInterviewAnalytics({
   let radarSkills = [];
   if (isHR) {
     radarSkills = [
-      { skill: "Communication & Clarity", score: avgClarity, fullMark: 100 },
-      { skill: "Behavioral & Situational", score: Math.min(95, Math.max(10, Math.round(overallScore * 0.95 + 4))), fullMark: 100 },
-      { skill: "Cultural & Team Fit", score: Math.min(95, Math.max(10, Math.round(overallScore * 0.92 + 5))), fullMark: 100 },
-      { skill: "Confidence Indicator", score: Math.min(95, Math.max(10, Math.round((answeredCount / totalQuestions) * 85 + 10))), fullMark: 100 },
-      { skill: "Role Motivation & Passion", score: Math.min(96, Math.max(10, Math.round(avgRelevance * 0.9 + 8))), fullMark: 100 },
+      { skill: "Communication & Clarity", score: meaningfulAnswersCount > 0 ? avgClarity : 0, fullMark: 100 },
+      { skill: "Behavioral & Situational", score: meaningfulAnswersCount > 0 ? Math.min(95, Math.max(0, Math.round(overallScore * 0.95))) : 0, fullMark: 100 },
+      { skill: "Cultural & Team Fit", score: meaningfulAnswersCount > 0 ? Math.min(95, Math.max(0, Math.round(overallScore * 0.92))) : 0, fullMark: 100 },
+      { skill: "Confidence Indicator", score: meaningfulAnswersCount > 0 ? Math.min(95, Math.max(0, Math.round((meaningfulAnswersCount / totalQuestions) * 90))) : 0, fullMark: 100 },
+      { skill: "Role Motivation & Passion", score: meaningfulAnswersCount > 0 ? Math.min(96, Math.max(0, Math.round(avgRelevance * 0.9))) : 0, fullMark: 100 },
       { skill: "Proctor Focus & Integrity", score: integrityScore, fullMark: 100 }
     ];
   } else if (isTechOnly) {

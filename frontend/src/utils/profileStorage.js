@@ -66,6 +66,21 @@ export function saveProfile(profileData) {
     console.error("Error saving profile:", err);
   }
 
+    // Async sync to backend SQLite database
+  try {
+    fetch("http://localhost:8000/api/users/profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: cleanId,
+        name: updatedProfile.name,
+        branch: updatedProfile.branch,
+        year: updatedProfile.year,
+        role: updatedProfile.role
+      })
+    }).catch(() => {});
+  } catch (e) {}
+
   return updatedProfile;
 }
 
@@ -219,6 +234,28 @@ export function saveTestResult(userId, testPayload) {
   } catch (err) {
     console.error("Error saving test result to localStorage:", err);
   }
+
+    // Async sync interview result to backend SQLite database
+  try {
+    fetch("http://localhost:8000/api/interviews/record", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...newTestRecord,
+        userId: cleanId,
+        name: testPayload.name || "Candidate",
+        branch: testPayload.branch || "CSE",
+        year: testPayload.year || "3rd Year",
+        role: testPayload.role || "Software Engineer",
+        interviewType: testPayload.interviewType || "Interview",
+        overallScore: testPayload.overallScore !== undefined ? testPayload.overallScore : 0,
+        performanceLevel: testPayload.performanceLevel || "Developing",
+        durationMinutes: testPayload.durationMinutes || 15,
+        integrityScore: testPayload.integrityScore !== undefined ? testPayload.integrityScore : 100,
+        tabSwitches: testPayload.tabSwitches || 0
+      })
+    }).catch(() => {});
+  } catch (e) {}
 
   return newTestRecord;
 }
@@ -429,4 +466,46 @@ export function compareTwoTests(testA, testB) {
     persistentWeaknesses,
     newWeaknesses
   };
+}
+
+/**
+ * Auto-syncs all existing localStorage candidate records to the backend database
+ */
+export function syncAllLocalDataToBackend() {
+  try {
+    const profiles = getAllProfiles();
+    Object.values(profiles).forEach((p) => {
+      fetch("http://localhost:8000/api/users/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: p.userId,
+          name: p.name,
+          branch: p.branch,
+          year: p.year,
+          role: p.role
+        })
+      }).catch(() => {});
+
+      const tests = getUserHistory(p.userId);
+      tests.forEach((t) => {
+        fetch("http://localhost:8000/api/interviews/record", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...t,
+            userId: p.userId,
+            name: p.name,
+            branch: t.branch || p.branch,
+            year: t.year || p.year,
+            role: t.role || p.role
+          })
+        }).catch(() => {});
+      });
+    });
+  } catch (e) {}
+}
+
+if (typeof window !== "undefined") {
+  setTimeout(syncAllLocalDataToBackend, 1500);
 }

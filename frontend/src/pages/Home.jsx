@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Footer from "../components/Footer";
-import { extractResumeText, analyzeResumeData } from "../utils/resumeParser";
+import { extractResumeText, analyzeResumeData, extractCandidateNameFromResume, validateCandidateNameWithResume } from "../utils/resumeParser";
 import { TECH_BRANCHES } from "../data/dsaProblems";
 import {
   getProfile,
@@ -29,6 +29,7 @@ function Home() {
   const [resumeOption, setResumeOption] = useState("no");
   const [resumeFile, setResumeFile] = useState(null);
   const [parsedData, setParsedData] = useState(null);
+  const [resumeExtractedName, setResumeExtractedName] = useState(null);
   const [isParsingResume, setIsParsingResume] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -197,7 +198,9 @@ function Home() {
     try {
       const rawText = await extractResumeText(file);
       const analyzed = analyzeResumeData(rawText, name);
+      const detectedName = extractCandidateNameFromResume(rawText);
       setParsedData(analyzed);
+      setResumeExtractedName(detectedName);
     } catch (err) {
       console.warn("Resume parsing issue:", err);
     } finally {
@@ -245,6 +248,15 @@ function Home() {
     setError("");
     if (loading) return;
     setLoading(true);
+
+// Strict Resume Name Consistency Validation
+    if ((resumeOption === "yes" || isResumeRequired) && resumeFile && parsedData?.rawText) {
+      const nameCheck = validateCandidateNameWithResume(name, parsedData.rawText, resumeExtractedName);
+      if (!nameCheck.isMatch && nameCheck.resumeName) {
+        setError(`Sorry, but your name ("${name}") does not match with your resume ("${nameCheck.resumeName}"). Please correct your name as per your resume to continue.`);
+        return;
+      }
+    }
 
     // Direct routing for DSA Coding Round
     if (interviewType === "DSA Coding Round") {
@@ -295,17 +307,17 @@ function Home() {
   return (
     <div className="page" style={{ padding: "20px 10px", minHeight: "100vh" }}>
       
-      {/* TOP DASHBOARD SHORTCUT HEADER */}
-      <div style={{ maxWidth: "560px", width: "100%", margin: "0 auto 16px auto", display: "flex", justifyContent: "flex-end" }}>
+      {/* TOP SHORTCUT HEADER (CANDIDATE DASHBOARD & ADMIN PORTAL) */}
+      <div style={{ maxWidth: "560px", width: "100%", margin: "0 auto 16px auto", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
         <button
           onClick={() => navigate("/dashboard", { state: { userId: userId || getActiveUser() } })}
           style={{
             background: "rgba(33, 150, 243, 0.15)",
             border: "1px solid rgba(33, 150, 243, 0.4)",
             color: "#64b5f6",
-            padding: "8px 16px",
+            padding: "8px 14px",
             borderRadius: "20px",
-            fontSize: "13px",
+            fontSize: "12px",
             fontWeight: "bold",
             cursor: "pointer",
             display: "flex",
@@ -315,7 +327,28 @@ function Home() {
           }}
         >
           <span>📊</span>
-          <span>Performance Dashboard & History ({MAX_HISTORY_LIMIT} Tests)</span>
+          <span>Performance Dashboard ({MAX_HISTORY_LIMIT} Tests)</span>
+        </button>
+
+        <button
+          onClick={() => navigate("/admin/login")}
+          style={{
+            background: "rgba(156, 39, 176, 0.15)",
+            border: "1px solid rgba(156, 39, 176, 0.4)",
+            color: "#ce93d8",
+            padding: "8px 14px",
+            borderRadius: "20px",
+            fontSize: "12px",
+            fontWeight: "bold",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            boxShadow: "0 4px 12px rgba(156, 39, 176, 0.15)"
+          }}
+        >
+          <span>🛡️</span>
+          <span>Admin Portal</span>
         </button>
       </div>
 

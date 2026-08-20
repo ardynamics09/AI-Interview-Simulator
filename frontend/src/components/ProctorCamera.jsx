@@ -9,7 +9,7 @@ function ProctorCamera({
   const canvasRef = useRef(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState("");
-  const [gazeStatus, setGazeStatus] = useState("CALIBRATING"); // "NORMAL", "LOOKING_AWAY", "NO_FACE", "LOOKING_DOWN"
+  const [gazeStatus, setGazeStatus] = useState("CALIBRATING"); // "NORMAL", "LOOKING_AWAY", "NO_FACE", "BLOCKED", "LOOKING_DOWN"
   const [warningMessage, setWarningMessage] = useState("");
 
   const violationCountRef = useRef(0);
@@ -56,7 +56,7 @@ function ProctorCamera({
     };
   }, []);
 
-  // Frame analysis loop for head pose and gaze orientation
+  // Frame analysis loop for head pose, gaze orientation, thumb lens blocking & missing face detection
   useEffect(() => {
     if (!cameraActive || isPaused) return;
 
@@ -85,9 +85,56 @@ function ProctorCamera({
       let faceX = 0.5;
       let faceY = 0.5;
       let faceFound = false;
+      let isCameraBlocked = false;
 
-      // 1. Try Native FaceDetector API if available
-      if (faceDetector) {
+      // 1. Analyze Frame Luminance & Lens Coverage (Detects thumb over lens or pitch black / solid block)
+      const frameData = ctx.getImageData(0, 0, width, height).data;
+      let sumX = 0;
+      let sumY = 0;
+      let totalSkinPixels = 0;
+      let totalBrightness = 0;
+      let minBrightness = 255;
+      let maxBrightness = 0;
+
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const idx = (y * width + x) * 4;
+          const r = frameData[idx];
+          const g = frameData[idx + 1];
+          const b = frameData[idx + 2];
+          const brightness = (r + g + b) / 3;
+
+          totalBrightness += brightness;
+          if (brightness < minBrightness) minBrightness = brightness;
+          if (brightness > maxBrightness) maxBrightness = brightness;
+
+          // Multi-tier skin and human facial luminance heuristic
+          const isStandardSkin = r > 45 && g > 28 && b > 18 && r > g && r > b && (r - g) > 8;
+          const isLowLightSkin = r > 20 && g > 14 && b > 10 && r >= g && r >= b && (r + g + b) > 42;
+
+          if (isStandardSkin || isLowLightSkin) {
+            sumX += x;
+            sumY += y;
+            totalSkinPixels += 1;
+          }
+        }
+      }
+
+      const totalPixels = width * height;
+      const avgBrightness = totalBrightness / totalPixels;
+      const skinRatio = totalSkinPixels / totalPixels;
+      const brightnessVariance = maxBrightness - minBrightness;
+
+      // Lens Blocking Check:
+      // A) Pitch dark / covered camera (avgBrightness < 12)
+      // B) Thumb covering lens: Excessive solid skin/red flood (skinRatio > 0.78 with low brightness variance < 60)
+      if (avgBrightness < 12 || (skinRatio > 0.78 && brightnessVariance < 65)) {
+        isCameraBlocked = true;
+        faceFound = false;
+      }
+
+      // 2. Try Native FaceDetector API if available and camera not blocked
+      if (!isCameraBlocked && faceDetector) {
         try {
           const faces = await faceDetector.detect(video);
           if (faces && faces.length > 0) {
@@ -101,55 +148,34 @@ function ProctorCamera({
         }
       }
 
-      // 2. Optical Center-of-Mass fallback (skin-tone & brightness luminance distribution)
-      if (!faceFound) {
-        const frameData = ctx.getImageData(0, 0, width, height).data;
-        let sumX = 0;
-        let sumY = 0;
-        let totalWeight = 0;
-
-        for (let y = 0; y < height; y++) {
-          for (let x = 0; x < width; x++) {
-            const idx = (y * width + x) * 4;
-            const r = frameData[idx];
-            const g = frameData[idx + 1];
-            const b = frameData[idx + 2];
-
-            // Skin / facial luminance heuristic
-            const isSkin = r > 60 && g > 40 && b > 20 && r > g && r > b && Math.abs(r - g) > 12;
-            if (isSkin) {
-              sumX += x;
-              sumY += y;
-              totalWeight += 1;
-            }
-          }
-        }
-
-        if (totalWeight > width * height * 0.05) {
-          faceX = sumX / totalWeight / width;
-          faceY = sumY / totalWeight / height;
+      // 3. Optical Center-of-Mass for face position (if faceDetector is unavailable)
+      if (!isCameraBlocked && !faceFound) {
+        // Face normally occupies 5% to 65% of the camera frame
+        if (skinRatio >= 0.04 && skinRatio <= 0.75 && brightnessVariance >= 25) {
+          faceX = sumX / totalSkinPixels / width;
+          faceY = sumY / totalSkinPixels / height;
           faceFound = true;
         }
       }
 
-      // 3. Orientation & Gaze Tolerance Analysis (~15 degrees offset)
-      // Center is around x: 0.5, y: 0.5
-      // 15 degrees angle corresponds to ~0.16 deviation from center.
-      // Looking DOWN (faceY > 0.65) is permitted for typing on keyboard.
-      if (!faceFound) {
+      // 4. Orientation & Gaze Tolerance Analysis
+      if (isCameraBlocked) {
+        outOfBoundsCounterRef.current += 1;
+        setGazeStatus("BLOCKED");
+      } else if (!faceFound) {
         outOfBoundsCounterRef.current += 1;
         setGazeStatus("NO_FACE");
       } else {
-        const deltaX = Math.abs(faceX - 0.5); // Horizontal turn (Left / Right)
-        const isLookingUp = faceY < 0.16;     // Looking too far UP (>25 degrees)
-        const isLookingDown = faceY > 0.62;   // Looking down at keyboard (ALLOWED!)
-        const isLookingFarSide = deltaX > 0.26; // Looking too far LEFT or RIGHT (>25 degrees)
+        const deltaX = Math.abs(faceX - 0.5); // Horizontal turn
+        const isLookingUp = faceY < 0.16;     // Looking too far up
+        const isLookingDown = faceY > 0.62;   // Looking down at keyboard/typing (ALLOWED & SAFE)
+        const isLookingFarSide = deltaX > 0.28; // Looking far left or right (>25 degrees)
 
         if (isLookingFarSide || isLookingUp) {
           outOfBoundsCounterRef.current += 1;
           setGazeStatus("LOOKING_AWAY");
         } else if (isLookingDown) {
-          // Looking down at keyboard is safe & allowed
+          // Typing / Looking down at desk is safe
           outOfBoundsCounterRef.current = Math.max(0, outOfBoundsCounterRef.current - 1);
           setGazeStatus("LOOKING_DOWN");
         } else {
@@ -159,19 +185,30 @@ function ProctorCamera({
         }
       }
 
-      // Deduct 2% focus points if out of bounds for > 3 consecutive checks (~2.4s)
+      // Trigger Penalty after 3 consecutive out-of-bounds checks (~2.4s)
       if (outOfBoundsCounterRef.current >= 3) {
         const now = Date.now();
-        // Cooldown of 4 seconds between penalties
         if (now - lastPenaltyTimeRef.current > 4000) {
           lastPenaltyTimeRef.current = now;
           violationCountRef.current += 1;
 
-          if (onFocusPenalty) {
-            onFocusPenalty(2, "Gaze or head orientation deviated beyond 25 degrees");
+          let reason = "Face not detected / Looking away (>25 degrees)";
+          if (isCameraBlocked) {
+            reason = "Camera blocked or covered";
           }
 
-          setWarningMessage("⚠️ Focus Alert: Keep your eyes on the screen! (-2% Focus)");
+          if (onFocusPenalty) {
+            onFocusPenalty(2, reason);
+          }
+
+          if (isCameraBlocked) {
+            setWarningMessage("⚠️ Camera Blocked: Do not cover lens! (-2% Focus)");
+          } else if (!faceFound) {
+            setWarningMessage("⚠️ Face Missing: Look at the camera! (-2% Focus)");
+          } else {
+            setWarningMessage("⚠️ Focus Alert: Keep your eyes on the screen! (-2% Focus)");
+          }
+
           setTimeout(() => setWarningMessage(""), 3000);
         }
       }
@@ -185,13 +222,16 @@ function ProctorCamera({
       return { text: "📷 Camera Offline", color: "#ff5252", bg: "rgba(255,82,82,0.15)" };
     }
     if (gazeStatus === "NORMAL") {
-      return { text: "🟢 Focus: Locked on Screen", color: "#00e676", bg: "rgba(0,230,118,0.15)" };
+      return { text: "🟢 Focus: Centered on Screen", color: "#00e676", bg: "rgba(0,230,118,0.15)" };
     }
     if (gazeStatus === "LOOKING_DOWN") {
       return { text: "⌨️ Typing / Reading Screen (OK)", color: "#64b5f6", bg: "rgba(100,181,246,0.15)" };
     }
+    if (gazeStatus === "BLOCKED") {
+      return { text: "🚫 Camera Blocked / Covered", color: "#ff5252", bg: "rgba(255,82,82,0.25)" };
+    }
     if (gazeStatus === "NO_FACE") {
-      return { text: "🔴 Face Not Centered", color: "#ff5252", bg: "rgba(255,82,82,0.2)" };
+      return { text: "🔴 Face Not in Frame", color: "#ff5252", bg: "rgba(255,82,82,0.2)" };
     }
     return { text: "⚠️ Looking Away (>25°)", color: "#ffb74d", bg: "rgba(255,183,77,0.2)" };
   };
@@ -212,16 +252,14 @@ function ProctorCamera({
         maxWidth: "200px"
       }}
     >
-      {/* CAMERA PREVIEW */}
       <div
         style={{
-          width: "160px",
-          height: "115px",
+          width: "100%",
+          position: "relative",
           borderRadius: "8px",
           overflow: "hidden",
           background: "#000",
-          position: "relative",
-          border: gazeStatus === "LOOKING_AWAY" ? "2px solid #ff9800" : (gazeStatus === "NO_FACE" ? "2px solid #ff5252" : "1px solid #333")
+          aspectRatio: "4/3"
         }}
       >
         <video
@@ -232,73 +270,93 @@ function ProctorCamera({
             width: "100%",
             height: "100%",
             objectFit: "cover",
-            transform: "scaleX(-1)" // Mirror view
+            transform: "scaleX(-1)"
           }}
         />
 
-        {/* Hidden sampling canvas */}
+        {/* Hidden Canvas for Optical Image Processing */}
         <canvas ref={canvasRef} width="64" height="48" style={{ display: "none" }} />
 
-        {/* AI Proctor HUD Overlay */}
+        {/* HUD Focus Bounding Reticle */}
+        {cameraActive && (
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: "60%",
+              height: "65%",
+              border: `2px dashed ${badge.color}`,
+              borderRadius: "50%",
+              pointerEvents: "none",
+              transition: "border-color 0.3s ease"
+            }}
+          />
+        )}
+
+        {/* Active Warning Overlay */}
+        {warningMessage && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              background: "rgba(255, 82, 82, 0.9)",
+              color: "#fff",
+              fontSize: "11px",
+              fontWeight: "bold",
+              padding: "4px",
+              textAlign: "center",
+              animation: "fadeIn 0.2s"
+            }}
+          >
+            {warningMessage}
+          </div>
+        )}
+      </div>
+
+      {/* Camera Live Status Badge */}
+      <div style={{ marginTop: "8px", width: "100%" }}>
         <div
           style={{
-            position: "absolute",
-            top: "4px",
-            left: "6px",
-            fontSize: "10px",
-            color: "#fff",
-            background: "rgba(0,0,0,0.6)",
-            padding: "1px 5px",
-            borderRadius: "4px",
+            background: badge.bg,
+            color: badge.color,
+            fontSize: "11px",
+            fontWeight: "bold",
+            padding: "4px 8px",
+            borderRadius: "6px",
+            textAlign: "center",
             display: "flex",
             alignItems: "center",
-            gap: "3px"
+            justifyContent: "center",
+            gap: "4px"
           }}
         >
-          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: cameraActive ? "#00e676" : "#ff5252" }}></span>
-          AI Proctor
+          {badge.text}
         </div>
       </div>
 
-      {/* STATUS BADGE */}
-      <div
-        style={{
-          marginTop: "8px",
-          fontSize: "11px",
-          fontWeight: "600",
-          color: badge.color,
-          background: badge.bg,
-          padding: "3px 8px",
-          borderRadius: "10px",
-          textAlign: "center",
-          width: "100%",
-          boxSizing: "border-box"
-        }}
-      >
-        {badge.text}
-      </div>
-
-      {/* REAL-TIME WARNING TOAST */}
-      {warningMessage && (
-        <div
-          style={{
-            marginTop: "6px",
-            fontSize: "10px",
-            color: "#ff5252",
-            fontWeight: "bold",
-            textAlign: "center",
-            animation: "fadeIn 0.2s ease"
-          }}
-        >
-          {warningMessage}
+      {/* Proctor Integrity Meter */}
+      <div style={{ width: "100%", marginTop: "6px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "#888", marginBottom: "2px" }}>
+          <span>Integrity Score</span>
+          <span style={{ color: integrityScore >= 80 ? "#00e676" : "#ff5252", fontWeight: "bold" }}>
+            {integrityScore}%
+          </span>
         </div>
-      )}
-
-      {cameraError && (
-        <span style={{ fontSize: "10px", color: "#ff5252", marginTop: "4px", textAlign: "center" }}>
-          {cameraError}
-        </span>
-      )}
+        <div style={{ width: "100%", height: "4px", background: "rgba(255,255,255,0.1)", borderRadius: "2px", overflow: "hidden" }}>
+          <div
+            style={{
+              width: `${integrityScore}%`,
+              height: "100%",
+              background: integrityScore >= 80 ? "#00e676" : integrityScore >= 60 ? "#ffb74d" : "#ff5252",
+              transition: "width 0.4s ease"
+            }}
+          />
+        </div>
+      </div>
     </div>
   );
 }

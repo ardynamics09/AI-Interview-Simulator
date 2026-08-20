@@ -7,6 +7,8 @@ import Interview from "./pages/Interview";
 import DsaRound from "./pages/DsaRound";
 import Result from "./pages/Result";
 import Dashboard from "./pages/Dashboard";
+import AdminLogin from "./pages/AdminLogin";
+import AdminDashboard from "./pages/AdminDashboard";
 
 function App() {
   return (
@@ -18,6 +20,10 @@ function App() {
 
         {/* 📊 Candidate Performance Dashboard & Test History */}
         <Route path="/dashboard" element={<Dashboard />} />
+
+        {/* 🛡️ Secure Read-Only Admin Control Center */}
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/admin" element={<AdminDashboard />} />
 
         {/* 🤖 AI Loading Screen */}
         <Route path="/loading" element={<LoadingScreen />} />
