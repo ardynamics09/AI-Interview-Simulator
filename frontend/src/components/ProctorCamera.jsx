@@ -56,7 +56,7 @@ function ProctorCamera({
     };
   }, []);
 
-  // Frame analysis loop for head pose, gaze orientation, thumb lens blocking & missing face detection
+  // Optical analysis loop for head pose, center-reticle containment, side-shifts, lens blocking & face presence
   useEffect(() => {
     if (!cameraActive || isPaused) return;
 
@@ -87,14 +87,21 @@ function ProctorCamera({
       let faceFound = false;
       let isCameraBlocked = false;
 
-      // 1. Analyze Frame Luminance & Lens Coverage (Detects thumb over lens or pitch black / solid block)
+      // 1. Analyze Frame Luminance, Skin Distribution & Center Reticle Focus
       const frameData = ctx.getImageData(0, 0, width, height).data;
       let sumX = 0;
       let sumY = 0;
       let totalSkinPixels = 0;
+      let centerReticleSkin = 0;
       let totalBrightness = 0;
       let minBrightness = 255;
       let maxBrightness = 0;
+
+      // Center reticle bounds in pixel coordinates (Circle in HUD)
+      const reticleMinX = width * 0.25;
+      const reticleMaxX = width * 0.75;
+      const reticleMinY = height * 0.15;
+      const reticleMaxY = height * 0.75;
 
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
@@ -108,7 +115,7 @@ function ProctorCamera({
           if (brightness < minBrightness) minBrightness = brightness;
           if (brightness > maxBrightness) maxBrightness = brightness;
 
-          // Multi-tier skin and human facial luminance heuristic
+          // Multi-tier skin and facial luminance detection
           const isStandardSkin = r > 45 && g > 28 && b > 18 && r > g && r > b && (r - g) > 8;
           const isLowLightSkin = r > 20 && g > 14 && b > 10 && r >= g && r >= b && (r + g + b) > 42;
 
@@ -116,6 +123,10 @@ function ProctorCamera({
             sumX += x;
             sumY += y;
             totalSkinPixels += 1;
+
+            if (x >= reticleMinX && x <= reticleMaxX && y >= reticleMinY && y <= reticleMaxY) {
+              centerReticleSkin += 1;
+            }
           }
         }
       }
@@ -126,14 +137,14 @@ function ProctorCamera({
       const brightnessVariance = maxBrightness - minBrightness;
 
       // Lens Blocking Check:
-      // A) Pitch dark / covered camera (avgBrightness < 12)
-      // B) Thumb covering lens: Excessive solid skin/red flood (skinRatio > 0.78 with low brightness variance < 60)
+      // A) Pitch black / covered lens (avgBrightness < 12)
+      // B) Thumb covering lens: Solid skin flood (> 78% of frame with low variance)
       if (avgBrightness < 12 || (skinRatio > 0.78 && brightnessVariance < 65)) {
         isCameraBlocked = true;
         faceFound = false;
       }
 
-      // 2. Try Native FaceDetector API if available and camera not blocked
+      // 2. Try Native FaceDetector API if available
       if (!isCameraBlocked && faceDetector) {
         try {
           const faces = await faceDetector.detect(video);
@@ -148,17 +159,25 @@ function ProctorCamera({
         }
       }
 
-      // 3. Optical Center-of-Mass for face position (if faceDetector is unavailable)
+      // 3. Center-of-Mass face detection with strict Center-Reticle verification
       if (!isCameraBlocked && !faceFound) {
-        // Face normally occupies 5% to 65% of the camera frame
+        // Face requires sufficient skin presence (>= 4% of frame) and presence inside center zone
         if (skinRatio >= 0.04 && skinRatio <= 0.75 && brightnessVariance >= 25) {
           faceX = sumX / totalSkinPixels / width;
           faceY = sumY / totalSkinPixels / height;
-          faceFound = true;
+
+          // If the candidate shifted to the side and the center reticle has no face skin (< 20% of total skin)
+          const centerRatio = centerReticleSkin / totalSkinPixels;
+          if (centerRatio > 0.25) {
+            faceFound = true;
+          } else {
+            // User is on the far periphery/shoulder only, center reticle is empty!
+            faceFound = false;
+          }
         }
       }
 
-      // 4. Orientation & Gaze Tolerance Analysis
+      // 4. Orientation & Gaze Tolerance Analysis (Center Containment Rule)
       if (isCameraBlocked) {
         outOfBoundsCounterRef.current += 1;
         setGazeStatus("BLOCKED");
@@ -166,20 +185,23 @@ function ProctorCamera({
         outOfBoundsCounterRef.current += 1;
         setGazeStatus("NO_FACE");
       } else {
-        const deltaX = Math.abs(faceX - 0.5); // Horizontal turn
-        const isLookingUp = faceY < 0.16;     // Looking too far up
-        const isLookingDown = faceY > 0.62;   // Looking down at keyboard/typing (ALLOWED & SAFE)
-        const isLookingFarSide = deltaX > 0.28; // Looking far left or right (>25 degrees)
+        const deltaX = Math.abs(faceX - 0.5); // Horizontal offset from center (0.0 = exact center)
+        
+        // Strict side-shift check: If user shifts sideways (> 18% from center, i.e., faceX < 0.32 or faceX > 0.68)
+        const isFarSideShift = deltaX > 0.18;
+        const isLookingTooHigh = faceY < 0.18;
+        const isSunkenOrTooLow = faceY > 0.74;
+        const isLookingDownTyping = deltaX <= 0.18 && faceY >= 0.52 && faceY <= 0.74;
 
-        if (isLookingFarSide || isLookingUp) {
+        if (isFarSideShift || isLookingTooHigh || isSunkenOrTooLow) {
           outOfBoundsCounterRef.current += 1;
-          setGazeStatus("LOOKING_AWAY");
-        } else if (isLookingDown) {
-          // Typing / Looking down at desk is safe
+          setGazeStatus(isFarSideShift ? "LOOKING_AWAY" : "NO_FACE");
+        } else if (isLookingDownTyping) {
+          // Centered and glancing down at keyboard/screen to type code
           outOfBoundsCounterRef.current = Math.max(0, outOfBoundsCounterRef.current - 1);
           setGazeStatus("LOOKING_DOWN");
         } else {
-          // Centered and focused
+          // Centered and looking at screen
           outOfBoundsCounterRef.current = 0;
           setGazeStatus("NORMAL");
         }
@@ -192,7 +214,7 @@ function ProctorCamera({
           lastPenaltyTimeRef.current = now;
           violationCountRef.current += 1;
 
-          let reason = "Face not detected / Looking away (>25 degrees)";
+          let reason = "Face not centered / Looking away (>25 degrees)";
           if (isCameraBlocked) {
             reason = "Camera blocked or covered";
           }
@@ -203,10 +225,10 @@ function ProctorCamera({
 
           if (isCameraBlocked) {
             setWarningMessage("⚠️ Camera Blocked: Do not cover lens! (-2% Focus)");
-          } else if (!faceFound) {
-            setWarningMessage("⚠️ Face Missing: Look at the camera! (-2% Focus)");
+          } else if (gazeStatus === "NO_FACE" || !faceFound) {
+            setWarningMessage("⚠️ Face Missing / Shifted Out! Stay inside the circle! (-2% Focus)");
           } else {
-            setWarningMessage("⚠️ Focus Alert: Keep your eyes on the screen! (-2% Focus)");
+            setWarningMessage("⚠️ Focus Alert: Look at the center of screen! (-2% Focus)");
           }
 
           setTimeout(() => setWarningMessage(""), 3000);
@@ -231,9 +253,9 @@ function ProctorCamera({
       return { text: "🚫 Camera Blocked / Covered", color: "#ff5252", bg: "rgba(255,82,82,0.25)" };
     }
     if (gazeStatus === "NO_FACE") {
-      return { text: "🔴 Face Not in Frame", color: "#ff5252", bg: "rgba(255,82,82,0.2)" };
+      return { text: "🔴 Face Not in Circle", color: "#ff5252", bg: "rgba(255,82,82,0.2)" };
     }
-    return { text: "⚠️ Looking Away (>25°)", color: "#ffb74d", bg: "rgba(255,183,77,0.2)" };
+    return { text: "⚠️ Shifted / Looking Away (>25°)", color: "#ffb74d", bg: "rgba(255,183,77,0.2)" };
   };
 
   const badge = getStatusBadge();
@@ -303,12 +325,13 @@ function ProctorCamera({
               bottom: 0,
               left: 0,
               right: 0,
-              background: "rgba(255, 82, 82, 0.9)",
+              background: "rgba(255, 82, 82, 0.95)",
               color: "#fff",
-              fontSize: "11px",
+              fontSize: "10px",
               fontWeight: "bold",
-              padding: "4px",
+              padding: "5px 4px",
               textAlign: "center",
+              lineHeight: "1.3",
               animation: "fadeIn 0.2s"
             }}
           >

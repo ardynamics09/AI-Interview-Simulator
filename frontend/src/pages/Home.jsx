@@ -307,7 +307,7 @@ function Home() {
   return (
     <div className="page" style={{ padding: "20px 10px", minHeight: "100vh" }}>
       
-      {/* TOP SHORTCUT HEADER (CANDIDATE DASHBOARD & ADMIN PORTAL) */}
+            {/* TOP SHORTCUT HEADER (CANDIDATE DASHBOARD & ADMIN PORTAL & GUIDE) */}
       <div style={{ maxWidth: "560px", width: "100%", margin: "0 auto 16px auto", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
         <button
           onClick={() => navigate("/dashboard", { state: { userId: userId || getActiveUser() } })}
@@ -315,19 +315,40 @@ function Home() {
             background: "rgba(33, 150, 243, 0.15)",
             border: "1px solid rgba(33, 150, 243, 0.4)",
             color: "#64b5f6",
-            padding: "8px 14px",
+            padding: "8px 12px",
             borderRadius: "20px",
             fontSize: "12px",
             fontWeight: "bold",
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
-            gap: "6px",
+            gap: "5px",
             boxShadow: "0 4px 12px rgba(33, 150, 243, 0.15)"
           }}
         >
           <span>📊</span>
-          <span>Performance Dashboard ({MAX_HISTORY_LIMIT} Tests)</span>
+          <span>Dashboard</span>
+        </button>
+
+        <button
+          onClick={() => navigate("/guide")}
+          style={{
+            background: "rgba(0, 230, 118, 0.15)",
+            border: "1px solid rgba(0, 230, 118, 0.4)",
+            color: "#69f0ae",
+            padding: "8px 12px",
+            borderRadius: "20px",
+            fontSize: "12px",
+            fontWeight: "bold",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "5px",
+            boxShadow: "0 4px 12px rgba(0, 230, 118, 0.15)"
+          }}
+        >
+          <span>📖</span>
+          <span>Interview Master Guide</span>
         </button>
 
         <button
@@ -336,19 +357,19 @@ function Home() {
             background: "rgba(156, 39, 176, 0.15)",
             border: "1px solid rgba(156, 39, 176, 0.4)",
             color: "#ce93d8",
-            padding: "8px 14px",
+            padding: "8px 12px",
             borderRadius: "20px",
             fontSize: "12px",
             fontWeight: "bold",
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
-            gap: "6px",
+            gap: "5px",
             boxShadow: "0 4px 12px rgba(156, 39, 176, 0.15)"
           }}
         >
           <span>🛡️</span>
-          <span>Admin Portal</span>
+          <span>Admin</span>
         </button>
       </div>
 
