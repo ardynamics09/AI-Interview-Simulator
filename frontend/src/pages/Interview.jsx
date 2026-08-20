@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import axios from "axios";
 import { speakText, stopSpeech, unlockAudio, createSpeechRecognizer } from "../utils/voiceUtils";
 import ProctorCamera from "../components/ProctorCamera";
 
@@ -368,9 +367,13 @@ function Interview() {
       setPrimaryAnswerSaved(answer);
 
       try {
-        const response = await axios.post(
-          "http://127.0.0.1:8000/generate-followup",
-          {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+        const response = await fetch("http://127.0.0.1:8000/generate-followup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
             name,
             branch,
             role,
@@ -379,12 +382,15 @@ function Interview() {
             category: categoryInfo.name,
             projects,
             skills
-          },
-          { timeout: 3000 }
-        );
+          }),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
 
-        if (response.data && response.data.hasFollowUp && response.data.followUpQuestion) {
-          const followQ = response.data.followUpQuestion;
+        const data = await response.json();
+
+        if (data && data.hasFollowUp && data.followUpQuestion) {
+          const followQ = data.followUpQuestion;
           setFollowUpQuestion(followQ);
           setIsFollowUpActive(true);
           setTimeLeft(120);
