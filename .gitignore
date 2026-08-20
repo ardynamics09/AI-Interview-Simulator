@@ -44,3 +44,7 @@ yarn-error.log*
 .idea/
 .DS_Store
 Thumbs.db
+
+# Private Personal Guides
+INTERVIEW_PROJECT_GUIDE.*
+*.guide.*

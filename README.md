@@ -202,8 +202,6 @@ AI-Interview-Simulator/
 │   │       └── voiceUtils.js    # TTS speech synthesis & STT mic recognition
 │   ├── package.json
 │   └── vite.config.js
-├── INTERVIEW_PROJECT_GUIDE.html # 1-Click Printable PDF Interview Guide (Hinglish)
-├── INTERVIEW_PROJECT_GUIDE.md   # Markdown Interview Master Guide
 └── README.md
 ```
 

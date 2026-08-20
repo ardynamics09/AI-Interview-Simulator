@@ -9,7 +9,6 @@ import Result from "./pages/Result";
 import Dashboard from "./pages/Dashboard";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
-import InterviewGuide from "./pages/InterviewGuide";
 
 function App() {
   return (
@@ -37,9 +36,6 @@ function App() {
 
         {/* 📊 Result Page */}
         <Route path="/result" element={<Result />} />
-
-        {/* 📖 Interview Master Guide (Hinglish) */}
-        <Route path="/guide" element={<InterviewGuide />} />
 
       </Routes>
     </BrowserRouter>
