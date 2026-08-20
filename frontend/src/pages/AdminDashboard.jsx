@@ -50,6 +50,31 @@ function AdminDashboard() {
   const [filterType, setFilterType] = useState("");
   const [filterMinScore, setFilterMinScore] = useState("");
 
+  // Inactivity Auto-Logout Watchdog (15 Minutes)
+  useEffect(() => {
+    const INACTIVITY_LIMIT_MS = 15 * 60 * 1000;
+    let timeoutId;
+
+    const resetTimer = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        alert("🔒 Security Lockout: You have been logged out due to 15 minutes of inactivity.");
+        clearAdminSession();
+        navigate("/admin/login", { replace: true });
+      }, INACTIVITY_LIMIT_MS);
+    };
+
+    const events = ["mousedown", "mousemove", "keydown", "scroll", "touchstart", "click"];
+    events.forEach((evt) => window.addEventListener(evt, resetTimer));
+
+    resetTimer();
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      events.forEach((evt) => window.removeEventListener(evt, resetTimer));
+    };
+  }, [navigate]);
+
   // Load and verify Admin authorization
   useEffect(() => {
     async function initDashboard() {

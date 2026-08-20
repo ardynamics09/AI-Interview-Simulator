@@ -1,6 +1,6 @@
 /**
- * Ultra-Realistic Human Voice AI Audio Utilities (TTS & STT)
- * Prioritizes high-fidelity Neural and Natural voices in Chrome, Edge, Safari and Firefox.
+ * Ultra-Realistic & Crystal-Clear Human Voice AI (TTS & STT)
+ * Features phonetic acronym expansion, natural pauses, and studio-clarity Neural voice calibration.
  */
 
 let cachedVoices = [];
@@ -21,7 +21,7 @@ if (typeof window !== "undefined") {
 }
 
 /**
- * Finds the most natural, human-sounding voice available in the client browser
+ * High-definition Neural and Natural voices in browser
  */
 function findBestVoice(isFemale) {
   const voices = window.speechSynthesis.getVoices();
@@ -30,7 +30,6 @@ function findBestVoice(isFemale) {
   if (available.length === 0) return null;
 
   if (isFemale) {
-    // 1. Natural / Neural High-Def Female Voices
     const priorityFemale = [
       "microsoft jenny online (natural)",
       "microsoft aria online (natural)",
@@ -42,9 +41,7 @@ function findBestVoice(isFemale) {
       "karen",
       "victoria",
       "zira",
-      "catherine",
-      "fiona",
-      "veena"
+      "catherine"
     ];
 
     for (const p of priorityFemale) {
@@ -52,12 +49,10 @@ function findBestVoice(isFemale) {
       if (match) return match;
     }
 
-    // Generic English Female Fallback
     const genericFemale = available.find(v => v.lang.startsWith("en") && (v.name.toLowerCase().includes("female") || v.name.toLowerCase().includes("woman")));
     if (genericFemale) return genericFemale;
 
   } else {
-    // 1. Natural / Neural High-Def Male Voices
     const priorityMale = [
       "microsoft guy online (natural)",
       "microsoft christopher online (natural)",
@@ -70,9 +65,7 @@ function findBestVoice(isFemale) {
       "daniel",
       "david",
       "george",
-      "mark",
-      "oliver",
-      "rishi"
+      "mark"
     ];
 
     for (const p of priorityMale) {
@@ -80,30 +73,84 @@ function findBestVoice(isFemale) {
       if (match) return match;
     }
 
-    // Generic English Male Fallback
     const genericMale = available.find(v => v.lang.startsWith("en") && (v.name.toLowerCase().includes("male") || v.name.toLowerCase().includes("man")));
     if (genericMale) return genericMale;
   }
 
-  // Any English voice fallback
   return available.find(v => v.lang.startsWith("en")) || available[0] || null;
 }
 
 /**
- * Normalizes question text into clean, conversational human speech with natural cadence
+ * Phonetic Dictionary for Crystal-Clear Pronunciation
+ * Expands technical abbreviations and acronyms that browsers mispronounce
+ */
+const PHONETIC_MAP = [
+  [/\bDSA\b/g, "Data Structures and Algorithms"],
+  [/\bDBMS\b/g, "D.B.M.S."],
+  [/\bOOP\b/g, "Object Oriented Programming"],
+  [/\bOOPs\b/g, "Object Oriented Programming"],
+  [/\bSQL\b/g, "Sequel"],
+  [/\bNoSQL\b/g, "No Sequel"],
+  [/\bREST API\b/gi, "REST A.P.I."],
+  [/\bAPI\b/g, "A.P.I."],
+  [/\bAPIs\b/g, "A.P.I.s"],
+  [/\bJWT\b/g, "J.W.T."],
+  [/\bRTL\b/g, "R.T.L."],
+  [/\bHDL\b/g, "H.D.L."],
+  [/\bVerilog\b/gi, "Verilog"],
+  [/\bFSM\b/g, "Finite State Machine"],
+  [/\bFSMs\b/g, "Finite State Machines"],
+  [/\bFIFO\b/g, "First In, First Out"],
+  [/\bLIFO\b/g, "Last In, First Out"],
+  [/\bO\(1\)/gi, "O of 1"],
+  [/\bO\(n\)/gi, "O of n"],
+  [/\bO\(n\^2\)/gi, "O of n squared"],
+  [/\bO\(n log n\)/gi, "O of n log n"],
+  [/\bO\(log n\)/gi, "O of log n"],
+  [/\bUI\/UX\b/gi, "U.I. and U.X."],
+  [/\bUI\b/g, "U.I."],
+  [/\bUX\b/g, "U.X."],
+  [/\bSTAR\b/g, "S.T.A.R."],
+  [/\be\.g\.,?\b/gi, "for example,"],
+  [/\bi\.e\.,?\b/gi, "that is,"],
+  [/\betc\.?\b/gi, "and so on"],
+  [/\bvs\.?\b/gi, "versus"],
+  [/\bw\.r\.t\.?\b/gi, "with respect to"],
+  [/\bAI\b/g, "A.I."],
+  [/\bML\b/g, "Machine Learning"],
+  [/\bNLP\b/g, "N.L.P."],
+  [/\bCSE\b/g, "Computer Science"],
+  [/\bECE\b/g, "Electronics and Communication"],
+  [/\bMNC\b/g, "Mathematics and Computing"],
+  [/\bEV\b/g, "Electric Vehicle"]
+];
+
+/**
+ * Normalizes question text for ultra-clear human pronunciation and natural cadence
  */
 function prepareSpeechText(text) {
-  return text
+  let cleaned = text
     .replace(/[`*#_~]/g, "")
-    .replace(/Q\d+:\s*/i, "")
-    .replace(/Round\s*\d+:\s*/i, "")
+    .replace(/\bQ\d+:\s*/i, "")
+    .replace(/\bRound\s*\d+:\s*/i, "")
     .replace(/http\S+/g, "")
-    .replace(/([.?!])\s+/g, "$1 ")
     .trim();
+
+  // Apply Phonetic Clarifications
+  PHONETIC_MAP.forEach(([regex, replacement]) => {
+    cleaned = cleaned.replace(regex, replacement);
+  });
+
+  // Ensure natural punctuation pauses
+  cleaned = cleaned
+    .replace(/([.?!])\s*/g, "$1 ")
+    .replace(/([,;:])\s*/g, "$1 ");
+
+  return cleaned;
 }
 
 /**
- * Speaks text aloud in ultra-realistic human male or female tone
+ * Speaks text aloud in ultra-clear, natural human tone
  * @param {string} text - Text to speak
  * @param {'male' | 'female'} gender - Desired voice gender
  * @param {Function} [onStart] - Callback when speech starts
@@ -115,7 +162,6 @@ export function speakText(text, gender = "male", onStart, onEnd) {
     return;
   }
 
-  // Cancel any ongoing speech & resume paused audio contexts
   window.speechSynthesis.cancel();
   if (window.speechSynthesis.paused) {
     window.speechSynthesis.resume();
@@ -131,13 +177,13 @@ export function speakText(text, gender = "male", onStart, onEnd) {
 
   const utterance = new SpeechSynthesisUtterance(cleanText);
 
-  // Natural Human Conversational Acoustics
+  // Crystal-Clear Human Diction & Tempo
   if (isFemale) {
-    utterance.pitch = 1.02; // Warm, professional human female pitch
-    utterance.rate = 0.96;  // Clear, thoughtful pacing
+    utterance.pitch = 1.01; // Warm, natural human female pitch
+    utterance.rate = 0.93;  // Deliberate, crystal-clear pacing
   } else {
-    utterance.pitch = 0.98; // Grounded, professional human male pitch
-    utterance.rate = 0.96;  // Clear, confident pacing
+    utterance.pitch = 0.98; // Grounded, executive human male pitch
+    utterance.rate = 0.93;  // Deliberate, confident pacing
   }
 
   const selectedVoice = findBestVoice(isFemale);
@@ -155,7 +201,6 @@ export function speakText(text, gender = "male", onStart, onEnd) {
     };
   }
 
-  // Speak with browser resume lock
   window.speechSynthesis.speak(utterance);
 
   if (window.speechSynthesis.paused) {
@@ -163,27 +208,18 @@ export function speakText(text, gender = "male", onStart, onEnd) {
   }
 }
 
-/**
- * Stops all speech synthesis
- */
 export function stopSpeech() {
   if (typeof window !== "undefined" && window.speechSynthesis) {
     window.speechSynthesis.cancel();
   }
 }
 
-/**
- * Unlocks audio context on initial page load / user interaction
- */
 export function unlockAudio() {
   if (typeof window !== "undefined" && window.speechSynthesis) {
     window.speechSynthesis.resume();
   }
 }
 
-/**
- * Speech to Text (STT) Recognition Hook / Manager
- */
 export function createSpeechRecognizer({ onResult, onStateChange, onError }) {
   const SpeechRecognition =
     typeof window !== "undefined"
@@ -266,3 +302,4 @@ export function createSpeechRecognizer({ onResult, onStateChange, onError }) {
     }
   };
 }
+
