@@ -83,15 +83,46 @@ class InterviewRecordSync(BaseModel):
     dsaSummary: Optional[Dict[str, Any]] = {}
     dateIso: Optional[str] = None
 
+class BatchSyncRequest(BaseModel):
+    profiles: Optional[List[Dict[str, Any]]] = []
+    interviews: Optional[List[Dict[str, Any]]] = []
+
 @app.post("/api/users/profile")
 def sync_user_profile(data: UserProfileSync):
     res = database.upsert_user(data.userId, data.name, data.branch, data.year, data.role)
     return {"success": True, "user": res}
 
 @app.post("/api/interviews/record")
-def sync_interview_record(data: InterviewRecordSync):
-    test_id = database.insert_interview_record(data.model_dump())
+def sync_interview_record(data: Dict[str, Any]):
+    test_id = database.insert_interview_record(data)
     return {"success": True, "testId": test_id}
+
+@app.post("/api/sync/batch")
+def sync_batch_data(data: BatchSyncRequest):
+    synced_users = 0
+    synced_interviews = 0
+    
+    for p in (data.profiles or []):
+        uid = p.get("userId") or p.get("user_id")
+        name = p.get("name") or "Candidate"
+        branch = p.get("branch") or "CSE"
+        year = p.get("year") or "3rd Year"
+        role = p.get("role") or "Software Engineer"
+        if uid:
+            database.upsert_user(uid, name, branch, year, role)
+            synced_users += 1
+
+    for item in (data.interviews or []):
+        database.insert_interview_record(item)
+        synced_interviews += 1
+
+    return {
+        "success": True,
+        "message": f"Successfully synchronized {synced_users} profiles and {synced_interviews} interview records to SQLite database.",
+        "syncedUsers": synced_users,
+        "syncedInterviews": synced_interviews
+    }
+
 
 
 # ==============================

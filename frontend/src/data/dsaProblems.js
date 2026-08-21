@@ -495,8 +495,7 @@ Specifications:
         "Must avoid race conditions and inferred latches (use non-blocking '<=' assignments in sequential block)"
       ],
       starterCode: {
-        verilog: `// IEEE 1364 Verilog D Flip-Flop with Asynch Reset
-module d_flip_flop (
+        verilog: `module d_flip_flop (
     input  wire clk,
     input  wire rst_n,
     input  wire en,
@@ -504,11 +503,10 @@ module d_flip_flop (
     output reg  q
 );
 
-    // TODO: Write your RTL sequential always block here
+    // Write your Verilog RTL code here
 
 endmodule`,
-        systemverilog: `// SystemVerilog IEEE 1800 D-FF Design
-module d_flip_flop (
+        systemverilog: `module d_flip_flop (
     input  logic clk,
     input  logic rst_n,
     input  logic en,
@@ -516,26 +514,24 @@ module d_flip_flop (
     output logic q
 );
 
-    // TODO: Write your RTL always_ff block here
+    // Write your SystemVerilog RTL code here
 
 endmodule`,
-        cpp: `// Embedded C / Driver Simulation
-#include <stdint.h>
+        cpp: `#include <stdint.h>
 
 typedef struct {
     uint8_t q;
 } D_FlipFlop;
 
 void update_dff(D_FlipFlop* dff, uint8_t clk_edge, uint8_t rst_n, uint8_t en, uint8_t d) {
-    // TODO: Implement D-FF transition logic
+    // Write your C code here
 }`,
-        python: `# Verification Model (Cocotb / Python Testbench)
-class DFlipFlopModel:
+        python: `class DFlipFlopModel:
     def __init__(self):
         self.q = 0
 
     def step(self, clk_edge, rst_n, en, d):
-        # TODO: Implement D-FF behavior model
+        # Write your Python code here
         return self.q`
       },
       testCases: [
@@ -569,12 +565,12 @@ Specifications:
     input  wire       clk,
     input  wire       rst_n,
     input  wire       en,
-    input  wire       up_down, // 1: Up, 0: Down
+    input  wire       up_down,
     output reg  [3:0] count,
     output wire       overflow
 );
 
-    // TODO: Implement synchronous 4-bit up/down counter and overflow logic
+    // Write your Verilog RTL code here
 
 endmodule`,
         systemverilog: `module up_down_counter #(parameter WIDTH = 4) (
@@ -586,7 +582,7 @@ endmodule`,
     output logic             overflow
 );
 
-    // TODO: Implement synchronous counter logic with always_ff
+    // Write your SystemVerilog RTL code here
 
 endmodule`,
         cpp: `#include <stdint.h>
@@ -597,7 +593,7 @@ typedef struct {
 } Counter4Bit;
 
 void step_counter(Counter4Bit* c, uint8_t rst_n, uint8_t en, uint8_t up_down) {
-    // TODO: Implement counter step logic
+    // Write your C code here
 }`,
         python: `class Counter4Bit:
     def __init__(self):
@@ -605,7 +601,7 @@ void step_counter(Counter4Bit* c, uint8_t rst_n, uint8_t en, uint8_t up_down) {
         self.overflow = 0
 
     def step(self, rst_n, en, up_down):
-        # TODO: Implement counter step simulation
+        # Write your Python code here
         return self.count, self.overflow`
       },
       testCases: [
@@ -640,7 +636,7 @@ Example Bit Stream:
     output reg  detected
 );
 
-    // TODO: Define states and implement FSM state register & next-state logic
+    // Write your Verilog RTL code here
 
 endmodule`,
         systemverilog: `module seq_detector_1011 (
@@ -650,21 +646,20 @@ endmodule`,
     output logic detected
 );
 
-    // TODO: Define enum state_t and implement Mealy FSM logic
+    // Write your SystemVerilog RTL code here
 
 endmodule`,
-        cpp: `typedef enum { S0, S1, S2, S3 } State;
+        cpp: `#include <stdint.h>
 
-int step_fsm(State* st, int din) {
-    // TODO: Implement FSM state transition
-    return 0;
+void step_fsm(int* state, int din, int* detected) {
+    // Write your C code here
 }`,
         python: `class FSM1011:
     def __init__(self):
         self.state = 0
 
     def step(self, din):
-        # TODO: Implement 1011 sequence detector
+        # Write your Python code here
         return 0`
       },
       testCases: [
@@ -711,7 +706,7 @@ Specifications:
     output reg  [ADDR_WIDTH:0]   fifo_cnt
 );
 
-    // TODO: Declare memory array and pointers, implement synchronous FIFO logic
+    // Write your Verilog RTL code here
 
 endmodule`,
         systemverilog: `module sync_fifo #(
@@ -729,7 +724,7 @@ endmodule`,
     output logic [ADDR_WIDTH:0]   fifo_cnt
 );
 
-    // TODO: Implement SystemVerilog FIFO with always_ff
+    // Write your SystemVerilog RTL code here
 
 endmodule`,
         cpp: `#include <stdint.h>
@@ -747,12 +742,12 @@ void fifo_init(SyncFIFO* f) {
 }
 
 int fifo_write(SyncFIFO* f, uint8_t data) {
-    // TODO: Implement circular buffer write
+    // Write your C code here
     return 0;
 }
 
 int fifo_read(SyncFIFO* f, uint8_t* out) {
-    // TODO: Implement circular buffer read
+    // Write your C code here
     return 0;
 }`,
         python: `class SyncFIFO:
@@ -761,11 +756,11 @@ int fifo_read(SyncFIFO* f, uint8_t* out) {
         self.buffer = []
 
     def write(self, data):
-        # TODO: Implement FIFO write
+        # Write your Python code here
         return False
 
     def read(self):
-        # TODO: Implement FIFO read
+        # Write your Python code here
         return None`
       },
       testCases: [
@@ -802,7 +797,7 @@ Specifications:
     output reg        pwm_out
 );
 
-    // TODO: Declare 8-bit counter and implement PWM comparator logic
+    // Write your Verilog RTL code here
 
 endmodule`,
         systemverilog: `module pwm_generator #(parameter int BITS = 8) (
@@ -812,7 +807,7 @@ endmodule`,
     output logic            pwm_out
 );
 
-    // TODO: Implement parameterized PWM generator
+    // Write your SystemVerilog RTL code here
 
 endmodule`,
         cpp: `#include <stdint.h>
@@ -823,7 +818,7 @@ typedef struct {
 } PWM_Generator;
 
 void step_pwm(PWM_Generator* pwm, uint8_t rst_n, uint8_t duty_cycle) {
-    // TODO: Implement PWM simulation step
+    // Write your C code here
 }`,
         python: `class PWMGenerator:
     def __init__(self):
@@ -831,7 +826,7 @@ void step_pwm(PWM_Generator* pwm, uint8_t rst_n, uint8_t duty_cycle) {
         self.pwm_out = 0
 
     def step(self, rst_n, duty_cycle):
-        # TODO: Implement PWM generator step
+        # Write your Python code here
         return self.pwm_out`
       },
       testCases: [

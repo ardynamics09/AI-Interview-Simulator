@@ -66,9 +66,13 @@ export function saveProfile(profileData) {
     console.error("Error saving profile:", err);
   }
 
-    // Async sync to backend SQLite database
+  // Async sync to backend SQLite database
   try {
-    fetch("http://localhost:8000/api/users/profile", {
+    const apiBase = (typeof window !== "undefined" && window.location && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"))
+      ? `http://${window.location.hostname}:8000`
+      : "http://127.0.0.1:8000";
+
+    fetch(`${apiBase}/api/users/profile`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -78,7 +82,7 @@ export function saveProfile(profileData) {
         year: updatedProfile.year,
         role: updatedProfile.role
       })
-    }).catch(() => {});
+    }).catch((e) => console.warn("[DB SYNC] User profile sync warning:", e));
   } catch (e) {}
 
   return updatedProfile;
@@ -176,14 +180,17 @@ export function saveTestResult(userId, testPayload) {
     minute: "2-digit"
   });
 
+  const nowIso = now.toISOString();
+
   const newTestRecord = {
     id: testId,
     timestamp: now.getTime(),
+    dateIso: nowIso,
     dateString: formattedDate,
     timeString: formattedTime,
     interviewType: testPayload.interviewType || "Interview",
-    role: testPayload.role || "Candidate",
-    branch: testPayload.branch || "General",
+    role: testPayload.role || "Software Engineer",
+    branch: testPayload.branch || "CSE",
     year: testPayload.year || "3rd Year",
     overallScore: testPayload.overallScore !== undefined ? testPayload.overallScore : 0,
     performanceLevel: testPayload.performanceLevel || "Developing",
@@ -226,7 +233,7 @@ export function saveTestResult(userId, testPayload) {
 
     profile.totalTests = trimmedHistory.length;
     profile.averageScore = avgScore;
-    profile.lastActive = new Date().toISOString();
+    profile.lastActive = nowIso;
 
     const allProfiles = getAllProfiles();
     allProfiles[cleanId] = profile;
@@ -235,9 +242,13 @@ export function saveTestResult(userId, testPayload) {
     console.error("Error saving test result to localStorage:", err);
   }
 
-    // Async sync interview result to backend SQLite database
+  // Async sync interview result to backend SQLite database
   try {
-    fetch("http://localhost:8000/api/interviews/record", {
+    const apiBase = (typeof window !== "undefined" && window.location && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"))
+      ? `http://${window.location.hostname}:8000`
+      : "http://127.0.0.1:8000";
+
+    fetch(`${apiBase}/api/interviews/record`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -252,9 +263,10 @@ export function saveTestResult(userId, testPayload) {
         performanceLevel: testPayload.performanceLevel || "Developing",
         durationMinutes: testPayload.durationMinutes || 15,
         integrityScore: testPayload.integrityScore !== undefined ? testPayload.integrityScore : 100,
-        tabSwitches: testPayload.tabSwitches || 0
+        tabSwitches: testPayload.tabSwitches || 0,
+        dateIso: nowIso
       })
-    }).catch(() => {});
+    }).catch((e) => console.warn("[DB SYNC] Interview record sync warning:", e));
   } catch (e) {}
 
   return newTestRecord;
@@ -471,11 +483,60 @@ export function compareTwoTests(testA, testB) {
 /**
  * Auto-syncs all existing localStorage candidate records to the backend database
  */
-export function syncAllLocalDataToBackend() {
+export async function syncAllLocalDataToBackend() {
   try {
+    const apiBase = (typeof window !== "undefined" && window.location && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"))
+      ? `http://${window.location.hostname}:8000`
+      : "http://127.0.0.1:8000";
+
     const profiles = getAllProfiles();
-    Object.values(profiles).forEach((p) => {
-      fetch("http://localhost:8000/api/users/profile", {
+    const profilesList = Object.values(profiles);
+    
+    const allTests = [];
+    profilesList.forEach((p) => {
+      const tests = getUserHistory(p.userId);
+      tests.forEach((t) => {
+        allTests.push({
+          ...t,
+          userId: p.userId,
+          name: p.name || t.name || "Candidate",
+          branch: t.branch || p.branch || "CSE",
+          year: t.year || p.year || "3rd Year",
+          role: t.role || p.role || "Software Engineer",
+          overallScore: t.overallScore !== undefined ? t.overallScore : 0
+        });
+      });
+    });
+
+    if (profilesList.length === 0 && allTests.length === 0) return;
+
+    // Try fast batch sync first
+    try {
+      const batchRes = await fetch(`${apiBase}/api/sync/batch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          profiles: profilesList.map((p) => ({
+            userId: p.userId,
+            name: p.name,
+            branch: p.branch,
+            year: p.year,
+            role: p.role
+          })),
+          interviews: allTests
+        })
+      });
+      if (batchRes.ok) {
+        console.log("[DB SYNC] Batch sync to SQLite database completed successfully.");
+        return;
+      }
+    } catch (e) {
+      // fallback to sequential sync if batch endpoint failed
+    }
+
+    // Fallback individual sync
+    profilesList.forEach((p) => {
+      fetch(`${apiBase}/api/users/profile`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -486,24 +547,18 @@ export function syncAllLocalDataToBackend() {
           role: p.role
         })
       }).catch(() => {});
-
-      const tests = getUserHistory(p.userId);
-      tests.forEach((t) => {
-        fetch("http://localhost:8000/api/interviews/record", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...t,
-            userId: p.userId,
-            name: p.name,
-            branch: t.branch || p.branch,
-            year: t.year || p.year,
-            role: t.role || p.role
-          })
-        }).catch(() => {});
-      });
     });
-  } catch (e) {}
+
+    allTests.forEach((t) => {
+      fetch(`${apiBase}/api/interviews/record`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(t)
+      }).catch(() => {});
+    });
+  } catch (e) {
+    console.warn("[DB SYNC] Local sync error:", e);
+  }
 }
 
 if (typeof window !== "undefined") {

@@ -4,6 +4,7 @@ import Footer from "../components/Footer";
 import {
   verifyAdminSession,
   clearAdminSession,
+  syncAllLocalDataToBackend,
   fetchOverviewAnalytics,
   fetchUserAnalytics,
   fetchInterviewAnalytics,
@@ -102,6 +103,10 @@ function AdminDashboard() {
     setRefreshing(true);
     setError("");
     try {
+      // 1. Auto-sync any unsynced candidate tests & profiles into SQLite database
+      await syncAllLocalDataToBackend();
+
+      // 2. Fetch fresh real-time analytics
       const [
         ov,
         us,

@@ -518,9 +518,13 @@ function Result() {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "18px" }}>
-              <span style={{ fontSize: "20px" }}>📚</span>
+              <span style={{ fontSize: "20px" }}>{analytics.isVerilogRound ? "⚡" : (analytics.isRoboticsRound ? "🤖" : "📚")}</span>
               <h2 style={{ fontSize: "19px", margin: 0, color: "#fff", fontWeight: "700" }}>
-                {analytics.isDsaRound ? "Algorithmic Pattern Proficiency" : "Technical Proficiency & Domain Breakdown"}
+                {analytics.isVerilogRound
+                  ? "RTL Architecture & Digital Hardware Proficiency"
+                  : (analytics.isRoboticsRound
+                    ? "Robotics Systems & Control Proficiency"
+                    : (analytics.isDsaRound ? "Algorithmic Pattern Proficiency" : "Technical Proficiency & Domain Breakdown"))}
               </h2>
             </div>
 

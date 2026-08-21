@@ -374,21 +374,70 @@ export function computeInterviewAnalytics({
           conciseness: 0,
           vocabulary: 0
         },
-        aiAnalysis: {
-          strengths: ["No coding submissions recorded to evaluate."],
-          weaknesses: ["All DSA problems were skipped. In coding rounds, attempting even partial logic secures points."],
-          summary: "No coding problems were submitted. Please write and execute your solutions in the editor to evaluate your algorithmic problem-solving skills."
-        },
-        technicalProficiency: [],
-        topicsToRevise: [
-          "Hash Table lookups (O(1)) and Two Pointer strategies",
-          "Sliding Window patterns on arrays and strings",
-          "Stack and Queue mechanics for bracket matching",
-          "Time & Space Complexity analysis (Big-O)"
-        ],
+        aiAnalysis: isVerilogRound
+          ? {
+              strengths: ["No Verilog RTL modules were submitted to evaluate."],
+              weaknesses: ["All RTL design problems were skipped. In hardware engineering assessments, attempting module port declarations and sensitivity lists secures partial points."],
+              summary: "No Verilog RTL problems were submitted. Please implement the required synthesizable RTL hardware modules in the editor to evaluate your digital design skills."
+            }
+          : (isRoboticsRound
+            ? {
+                strengths: ["No robotics control algorithms were submitted to evaluate."],
+                weaknesses: ["All robotics simulation challenges were skipped."],
+                summary: "No robotics simulation problems were submitted. Implement your feedback control and kinematics logic to evaluate your skills."
+              }
+            : {
+                strengths: ["No coding submissions recorded to evaluate."],
+                weaknesses: ["All DSA problems were skipped. In coding rounds, attempting even partial logic secures points."],
+                summary: "No coding problems were submitted. Please write and execute your solutions in the editor to evaluate your algorithmic problem-solving skills."
+              }),
+        technicalProficiency: isVerilogRound
+          ? [
+              { topic: "Sequential Logic & Clock Sensitivity", score: 0 },
+              { topic: "Reset Sensitivity (Async vs Sync)", score: 0 },
+              { topic: "Non-blocking (<=) Assignment Rules", score: 0 },
+              { topic: "FSM State Encoding (Mealy/Moore)", score: 0 },
+              { topic: "Latch Prevention & Synthesis Constraints", score: 0 }
+            ]
+          : (isRoboticsRound
+            ? [
+                { topic: "PID Feedback & Transient Stability", score: 0 },
+                { topic: "Forward & Inverse Kinematics", score: 0 },
+                { topic: "Sensor Signal Processing (IMU)", score: 0 },
+                { topic: "Trajectory Planning (A* / RRT)", score: 0 },
+                { topic: "Actuator Limits & Boundary Clamping", score: 0 }
+              ]
+            : [
+                { topic: "Arrays & Hash Map Lookup", score: 0 },
+                { topic: "Two Pointers & Sliding Window", score: 0 },
+                { topic: "Stack & String Parsing", score: 0 },
+                { topic: "Time Complexity (Big-O)", score: 0 },
+                { topic: "Edge-Case Handling", score: 0 }
+              ]),
+        topicsToRevise: isVerilogRound
+          ? [
+              "Asynchronous active-low reset recovery and clock domain crossing",
+              "Non-blocking assignment rules in edge-triggered sequential blocks",
+              "Combinational latch prevention with complete default case branches",
+              "FSM state encoding optimization (Binary, Gray, One-Hot)",
+              "FIFO full/empty flag synchronization to prevent overflow & underflow"
+            ]
+          : (isRoboticsRound
+            ? [
+                "PID gain tuning (Kp, Ki, Kd) for minimizing overshoot and settling time",
+                "Inverse Kinematics geometric & algebraic transformations for robotic arms",
+                "Sensor fusion filter implementations (Kalman filter / Complementary filter)",
+                "Heuristic search trajectory planning and obstacle collision avoidance"
+              ]
+            : [
+                "Hash Table lookups (O(1)) and Two Pointer strategies",
+                "Sliding Window patterns on arrays and strings",
+                "Stack and Queue mechanics for bracket matching",
+                "Time & Space Complexity analysis (Big-O)"
+              ]),
         projectEvaluation: null,
         interviewReadiness: computeInterviewReadiness(overallScore, isHR ? (avgClarity) : (avgVocabulary), (overallScore), answeredCount, meaningfulAnswersCount, totalQuestions, false, gibberishCount > 0),
-      mlReadiness: {
+        mlReadiness: {
           score: 0,
           category: "LOW",
           status: "UNATTEMPTED",
@@ -400,24 +449,62 @@ export function computeInterviewAnalytics({
           }
         },
         evaluatedQuestions: evaluatedDsaQuestions,
-        actionPlan: {
-          priority1: {
-            topic: "Daily DSA Problem Solving",
-            priority: "High Priority",
-            action: "Practice 2-3 standard problems daily on Arrays, Hash Maps, and Two Pointers."
-          },
-          priority2: {
-            topic: "Time Complexity Optimization",
-            priority: "High Priority",
-            action: "Learn to replace O(n²) nested loops with O(n) Hash Map or sorting solutions."
-          },
-          priority3: {
-            topic: "Syntax & Edge-Case Validation",
-            priority: "Medium Priority",
-            action: "Test with boundary cases (empty inputs, single element, negative numbers) before submitting."
-          },
-          recommendedNextInterview: "DSA Coding Round — Retry Session"
-        }
+        actionPlan: isVerilogRound
+          ? {
+              priority1: {
+                topic: "Synthesizable Sequential RTL",
+                priority: "High Priority",
+                action: "Practice writing clean edge-triggered always blocks with active-low asynchronous reset."
+              },
+              priority2: {
+                topic: "Non-blocking vs Blocking Semantics",
+                priority: "High Priority",
+                action: "Always use '<=' for registers and '=' for combinational nets to eliminate race conditions."
+              },
+              priority3: {
+                topic: "FSM & Hardware Memory Design",
+                priority: "Medium Priority",
+                action: "Build parameterized FIFO buffers and Mealy/Moore FSMs with complete state recovery."
+              },
+              recommendedNextInterview: "Verilog RTL Design Round — Retry Session"
+            }
+          : (isRoboticsRound
+            ? {
+                priority1: {
+                  topic: "Closed-Loop Control Tuning",
+                  priority: "High Priority",
+                  action: "Tune PID controllers to avoid integral windup and ensure rapid convergence without oscillation."
+                },
+                priority2: {
+                  topic: "Robotics Kinematics",
+                  priority: "High Priority",
+                  action: "Practice inverse kinematics equations and Jacobian matrix formulation for multi-DOF systems."
+                },
+                priority3: {
+                  topic: "Sensor Filtering & Fusion",
+                  priority: "Medium Priority",
+                  action: "Implement discrete Kalman filters to eliminate sensor noise in real-time control loops."
+                },
+                recommendedNextInterview: "Robotics Simulation Round — Retry Session"
+              }
+            : {
+                priority1: {
+                  topic: "Daily DSA Problem Solving",
+                  priority: "High Priority",
+                  action: "Practice 2-3 standard problems daily on Arrays, Hash Maps, and Two Pointers."
+                },
+                priority2: {
+                  topic: "Time Complexity Optimization",
+                  priority: "High Priority",
+                  action: "Learn to replace O(n²) nested loops with O(n) Hash Map or sorting solutions."
+                },
+                priority3: {
+                  topic: "Syntax & Edge-Case Validation",
+                  priority: "Medium Priority",
+                  action: "Test with boundary cases (empty inputs, single element, negative numbers) before submitting."
+                },
+                recommendedNextInterview: "DSA Coding Round — Retry Session"
+              })
       };
     }
 
@@ -428,19 +515,21 @@ export function computeInterviewAnalytics({
     const avgSyntax = Math.round(totalSyntaxScore / attemptedProblems);
     const testCasesPct = Math.round((totalPassedTestCases / Math.max(1, totalTestCasesCount)) * 100);
 
-    let performanceBadge = "STRONG CODER";
+    const clampPct = (val) => Math.max(0, Math.min(100, Math.round(val)));
+
+    let performanceBadge = isVerilogRound ? "RTL DESIGNER" : "STRONG CODER";
     let performanceLevel = "Strong";
     if (overallScore >= 88) {
-      performanceBadge = "EXCEPTIONAL CODER";
+      performanceBadge = isVerilogRound ? "EXCEPTIONAL RTL ARCHITECT" : "EXCEPTIONAL CODER";
       performanceLevel = "Exceptional";
     } else if (overallScore >= 75) {
-      performanceBadge = "VERY GOOD CODER";
+      performanceBadge = isVerilogRound ? "VERY GOOD RTL ENGINEER" : "VERY GOOD CODER";
       performanceLevel = "Very Good";
     } else if (overallScore >= 60) {
-      performanceBadge = "GOOD CODER";
+      performanceBadge = isVerilogRound ? "GOOD RTL DESIGNER" : "GOOD CODER";
       performanceLevel = "Good";
     } else {
-      performanceBadge = "NEEDS PRACTICE";
+      performanceBadge = isVerilogRound ? "NEEDS RTL PRACTICE" : "NEEDS PRACTICE";
       performanceLevel = "Needs Improvement";
     }
 
@@ -459,6 +548,8 @@ export function computeInterviewAnalytics({
       integrityScore,
       tabSwitches,
       isDsaRound: true,
+      isVerilogRound,
+      isRoboticsRound,
       dsaSummary: {
         questionsSolved: `${attemptedProblems} / ${totalProblems}`,
         testCasesPassed: `${totalPassedTestCases} / ${totalTestCasesCount}`,
@@ -479,7 +570,7 @@ export function computeInterviewAnalytics({
         : (isVerilogRound
           ? [
               { skill: "RTL Architecture & Logic", score: avgLogic, fullMark: 100 },
-              { skill: "Synthesis & Testbench Verification", score: testCasesPct, fullMark: 100 },
+              { skill: "Synthesis & Verification", score: testCasesPct, fullMark: 100 },
               { skill: "Timing & Clock Domains", score: 86, fullMark: 100 },
               { skill: "FSM & Memory Optimization", score: 82, fullMark: 100 },
               { skill: "Verilog Syntax Accuracy", score: avgSyntax, fullMark: 100 },
@@ -500,39 +591,104 @@ export function computeInterviewAnalytics({
         conciseness: 90,
         vocabulary: avgSyntax
       },
-      aiAnalysis: {
-        strengths: [
-          `Demonstrated strong algorithmic reasoning on core data structure challenges.`,
-          `Successfully applied optimal O(n) / O(n log n) approaches to target problems.`,
-          `Maintained clean code structure and descriptive variable naming.`
-        ],
-        weaknesses: [
-          syntaxIssuesCount > 0
-            ? "Identified minor syntax punctuation/bracket issues. Ensure clean syntax before final submission."
-            : "Test edge cases (empty arrays, duplicates, negative numbers) to ensure 100% test case coverage.",
-          tabSwitches > 0
-            ? `Proctor detected ${tabSwitches} tab/window switches. Maintain full window focus during timed coding assessments.`
-            : "Review optimal space complexity trade-offs for memory-constrained problems."
-        ],
-        summary: `You achieved a ${performanceLevel} coding performance with ${avgLogic}% logic accuracy and passed ${totalPassedTestCases}/${totalTestCasesCount} test cases. ${syntaxIssuesCount > 0 ? "Your core logic is sound; simply double-check minor syntax details to lock in maximum credit." : "Great grasp of problem patterns and optimal complexities."}`
-      },
-      technicalProficiency: [
-        { topic: "Arrays & Hash Map Lookup", score: Math.min(98, avgLogic + 4) },
-        { topic: "Two Pointers & Sliding Window", score: Math.min(95, avgLogic - 2) },
-        { topic: "Stack & String Parsing", score: Math.min(96, avgLogic + 2) },
-        { topic: "Time Complexity (Big-O)", score: 84 },
-        { topic: "Edge-Case Handling", score: testCasesPct }
-      ],
-      topicsToRevise: [
-        "Sliding Window with variable window size on strings",
-        "Interval merging and boundary sorting algorithms",
-        "Two Pointer trapping algorithms & water height computations"
-      ],
+      aiAnalysis: isVerilogRound
+        ? {
+            strengths: [
+              "Demonstrated understanding of synthesizable digital logic and register transfer levels (RTL).",
+              "Structured module port lists and synchronous clock/reset sensitivity declarations.",
+              "Applied non-blocking register assignments for sequential state updates."
+            ],
+            weaknesses: [
+              syntaxIssuesCount > 0
+                ? "Identified Verilog syntax or block pairing issues (check begin/end and module/endmodule pairing). Double-check syntax before final synthesis."
+                : "Review asynchronous active-low reset assertion and boundary signal stability.",
+              tabSwitches > 0
+                ? `Proctor detected ${tabSwitches} tab/window switches. Maintain full editor focus during hardware design assessments.`
+                : "Verify clock-to-q timing margins and eliminate inferred latches in combinational paths."
+            ],
+            summary: `You achieved a ${performanceLevel} Verilog RTL design score with ${avgLogic}% logic accuracy and passed ${totalPassedTestCases}/${totalTestCasesCount} hardware test cases. ${syntaxIssuesCount > 0 ? "Your RTL logic structure is clean; ensure all syntax blocks are matched to secure full verification credit." : "Strong grasp of digital hardware design, sequential timing, and RTL synthesizability."}`
+          }
+        : (isRoboticsRound
+          ? {
+              strengths: [
+                "Demonstrated strong mathematical formulation for closed-loop control and trajectory execution.",
+                "Applied kinematics transforms with proper numerical stability bounds.",
+                "Maintained clean modular structure for sensor processing pipelines."
+              ],
+              weaknesses: [
+                syntaxIssuesCount > 0
+                  ? "Identified minor syntax errors in control equations. Verify operators and matrix dimensions."
+                  : "Check boundary clamping and saturation limits on control actuators to avoid overflow.",
+                tabSwitches > 0
+                  ? `Proctor detected ${tabSwitches} tab/window switches. Maintain full window focus.`
+                  : "Analyze transient settling time and overshoot characteristics under noise."
+              ],
+              summary: `You achieved a ${performanceLevel} robotics simulation score with ${avgLogic}% logic accuracy and passed ${totalPassedTestCases}/${totalTestCasesCount} test cases.`
+            }
+          : {
+              strengths: [
+                "Demonstrated strong algorithmic reasoning on core data structure challenges.",
+                "Successfully applied optimal O(n) / O(n log n) approaches to target problems.",
+                "Maintained clean code structure and descriptive variable naming."
+              ],
+              weaknesses: [
+                syntaxIssuesCount > 0
+                  ? "Identified minor syntax punctuation/bracket issues. Ensure clean syntax before final submission."
+                  : "Test edge cases (empty arrays, duplicates, negative numbers) to ensure 100% test case coverage.",
+                tabSwitches > 0
+                  ? `Proctor detected ${tabSwitches} tab/window switches. Maintain full window focus during timed coding assessments.`
+                  : "Review optimal space complexity trade-offs for memory-constrained problems."
+              ],
+              summary: `You achieved a ${performanceLevel} coding performance with ${avgLogic}% logic accuracy and passed ${totalPassedTestCases}/${totalTestCasesCount} test cases. ${syntaxIssuesCount > 0 ? "Your core logic is sound; simply double-check minor syntax details to lock in maximum credit." : "Great grasp of problem patterns and optimal complexities."}`
+            }),
+      technicalProficiency: isVerilogRound
+        ? [
+            { topic: "Sequential Logic & Clock Sensitivity", score: clampPct(avgLogic) },
+            { topic: "Reset Sensitivities (Active-Low/High)", score: clampPct(Math.max(avgLogic, testCasesPct)) },
+            { topic: "Non-blocking (<=) Assignment Integrity", score: clampPct(avgSyntax) },
+            { topic: "FSM & State Register Modeling", score: clampPct(avgLogic > 0 ? avgLogic + 4 : 0) },
+            { topic: "Latch Prevention & Synthesis Constraints", score: clampPct(testCasesPct) }
+          ]
+        : (isRoboticsRound
+          ? [
+              { topic: "PID Feedback & Transient Stability", score: clampPct(avgLogic) },
+              { topic: "Forward & Inverse Kinematics", score: clampPct(testCasesPct) },
+              { topic: "Sensor Signal Processing (IMU / Kalman)", score: clampPct(avgSyntax) },
+              { topic: "Trajectory Planning (A* / RRT)", score: clampPct(avgLogic > 0 ? avgLogic + 2 : 0) },
+              { topic: "Actuator Limits & Boundary Clamping", score: clampPct(testCasesPct) }
+            ]
+          : [
+              { topic: "Arrays & Hash Map Lookup", score: clampPct(avgLogic > 0 ? avgLogic + 4 : 0) },
+              { topic: "Two Pointers & Sliding Window", score: clampPct(avgLogic > 0 ? Math.max(0, avgLogic - 2) : 0) },
+              { topic: "Stack & String Parsing", score: clampPct(avgLogic > 0 ? avgLogic + 2 : 0) },
+              { topic: "Time Complexity (Big-O)", score: clampPct(avgLogic > 0 ? 84 : 0) },
+              { topic: "Edge-Case Handling", score: clampPct(testCasesPct) }
+            ]),
+      topicsToRevise: isVerilogRound
+        ? [
+            "Asynchronous active-low reset recovery and clock domain crossing",
+            "Non-blocking assignment rules in edge-triggered sequential blocks",
+            "Combinational latch prevention with complete default case branches",
+            "FSM state encoding optimization (Binary, Gray, One-Hot)",
+            "FIFO full/empty flag synchronization to prevent overflow & underflow"
+          ]
+        : (isRoboticsRound
+          ? [
+              "PID gain tuning (Kp, Ki, Kd) for minimizing overshoot and settling time",
+              "Inverse Kinematics geometric & algebraic transformations for robotic arms",
+              "Sensor fusion filter implementations (Kalman filter / Complementary filter)",
+              "Heuristic search trajectory planning and obstacle collision avoidance"
+            ]
+          : [
+              "Sliding Window with variable window size on strings",
+              "Interval merging and boundary sorting algorithms",
+              "Two Pointer trapping algorithms & water height computations"
+            ]),
       projectEvaluation: null,
       mlReadiness: {
         score: overallScore,
         category: overallScore >= 80 ? "HIGH" : "MODERATE",
-        status: overallScore >= 80 ? "INTERVIEW READY" : "DEVELOPING CODER",
+        status: overallScore >= 80 ? (isVerilogRound ? "RTL INTERVIEW READY" : "INTERVIEW READY") : "DEVELOPING CODER",
         features: {
           avgWordsPerAnswer: 45,
           totalTechnicalTerms: attemptedProblems * 4,
@@ -541,24 +697,62 @@ export function computeInterviewAnalytics({
         }
       },
       evaluatedQuestions: evaluatedDsaQuestions,
-      actionPlan: {
-        priority1: {
-          topic: "Complexity Optimization (Big-O)",
-          priority: "High Priority",
-          action: "Analyze time and space bounds before writing code. Aim for O(n) single pass solutions."
-        },
-        priority2: {
-          topic: "Edge-Case Pre-flight Checks",
-          priority: "Medium Priority",
-          action: "Mentally dry-run boundary test cases (null, 0, duplicates) to guarantee 100% test passing."
-        },
-        priority3: {
-          topic: "Timed Coding Practice",
-          priority: "Medium Priority",
-          action: "Practice solving Medium problems in under 12 minutes to build speed and accuracy under pressure."
-        },
-        recommendedNextInterview: "Full Interview Simulation — Complete 6-Round Session"
-      }
+      actionPlan: isVerilogRound
+        ? {
+            priority1: {
+              topic: "Synthesizable Sequential RTL",
+              priority: "High Priority",
+              action: "Practice writing clean edge-triggered always blocks with active-low asynchronous reset."
+            },
+            priority2: {
+              topic: "Non-blocking vs Blocking Semantics",
+              priority: "High Priority",
+              action: "Always use '<=' for registers and '=' for combinational nets to eliminate race conditions."
+            },
+            priority3: {
+              topic: "FSM & Hardware Memory Design",
+              priority: "Medium Priority",
+              action: "Build parameterized FIFO buffers and Mealy/Moore FSMs with complete state recovery."
+            },
+            recommendedNextInterview: "Verilog RTL Design Round — Retry Session"
+          }
+        : (isRoboticsRound
+          ? {
+              priority1: {
+                topic: "Closed-Loop Control Tuning",
+                priority: "High Priority",
+                action: "Tune PID controllers to avoid integral windup and ensure rapid convergence without oscillation."
+              },
+              priority2: {
+                topic: "Robotics Kinematics",
+                priority: "High Priority",
+                action: "Practice inverse kinematics equations and Jacobian matrix formulation for multi-DOF systems."
+              },
+              priority3: {
+                topic: "Sensor Filtering & Fusion",
+                priority: "Medium Priority",
+                action: "Implement discrete Kalman filters to eliminate sensor noise in real-time control loops."
+              },
+              recommendedNextInterview: "Robotics Simulation Round — Retry Session"
+            }
+          : {
+              priority1: {
+                topic: "Complexity Optimization (Big-O)",
+                priority: "High Priority",
+                action: "Analyze time and space bounds before writing code. Aim for O(n) single pass solutions."
+              },
+              priority2: {
+                topic: "Edge-Case Pre-flight Checks",
+                priority: "Medium Priority",
+                action: "Mentally dry-run boundary test cases (null, 0, duplicates) to guarantee 100% test passing."
+              },
+              priority3: {
+                topic: "Timed Coding Practice",
+                priority: "Medium Priority",
+                action: "Practice solving Medium problems in under 12 minutes to build speed and accuracy under pressure."
+              },
+              recommendedNextInterview: "Full Interview Simulation — Complete 6-Round Session"
+            })
     };
   }
 

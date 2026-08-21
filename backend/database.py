@@ -161,7 +161,7 @@ def verify_admin_token(token: str) -> Optional[Dict[str, Any]]:
 def upsert_user(user_id: str, name: str, branch: str, year: str, role: str) -> Dict[str, Any]:
     conn = get_db_connection()
     cursor = conn.cursor()
-    clean_id = user_id.lower().strip().lstrip("@")
+    clean_id = (user_id or "candidate").lower().strip().lstrip("@")
     now_iso = datetime.utcnow().isoformat()
 
     try:
@@ -171,12 +171,12 @@ def upsert_user(user_id: str, name: str, branch: str, year: str, role: str) -> D
             cursor.execute("""
             UPDATE users SET name = ?, branch = ?, year = ?, role = ?, last_active = ?
             WHERE user_id = ?
-            """, (name, branch, year, role, now_iso, clean_id))
+            """, (name or "Candidate", branch or "CSE", year or "3rd Year", role or "Software Engineer", now_iso, clean_id))
         else:
             cursor.execute("""
             INSERT INTO users (user_id, name, branch, year, role, created_at, last_active, role_type)
             VALUES (?, ?, ?, ?, ?, ?, ?, 'user')
-            """, (clean_id, name, branch, year, role, now_iso, now_iso))
+            """, (clean_id, name or "Candidate", branch or "CSE", year or "3rd Year", role or "Software Engineer", now_iso, now_iso))
         conn.commit()
     finally:
         conn.close()
@@ -187,27 +187,64 @@ def insert_interview_record(record: Dict[str, Any]) -> str:
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    test_id = record.get("id") or f"test_{int(datetime.utcnow().timestamp()*1000)}"
-    user_id = (record.get("userId") or record.get("user_id") or "candidate").lower().strip().lstrip("@")
-    user_name = record.get("name") or "Candidate"
+    test_id = str(record.get("id") or record.get("testId") or record.get("test_id") or f"test_{int(datetime.utcnow().timestamp()*1000)}")
+    user_id = str(record.get("userId") or record.get("user_id") or "candidate").lower().strip().lstrip("@")
+    user_name = record.get("name") or record.get("user_name") or record.get("candidateName") or "Candidate"
     branch = record.get("branch") or "CSE"
     year = record.get("year") or "3rd Year"
     role = record.get("role") or "Software Engineer"
     interview_type = record.get("interviewType") or record.get("interview_type") or "Technical Interview"
-    overall_score = float(record.get("overallScore") if record.get("overallScore") is not None else (record.get("overall_score") or 0))
-    perf_level = record.get("performanceLevel") or "Developing"
-    duration = int(record.get("durationMinutes") or 15)
-    integrity = float(record.get("integrityScore") if record.get("integrityScore") is not None else 100)
-    tab_switches = int(record.get("tabSwitches") or 0)
+    
+    score_raw = record.get("overallScore") if record.get("overallScore") is not None else record.get("overall_score")
+    overall_score = float(score_raw) if score_raw is not None else 0.0
+    
+    perf_level = record.get("performanceLevel") or record.get("performance_level") or "Developing"
+    duration = int(record.get("durationMinutes") or record.get("duration_minutes") or 15)
+    
+    integrity_raw = record.get("integrityScore") if record.get("integrityScore") is not None else record.get("integrity_score")
+    integrity = float(integrity_raw) if integrity_raw is not None else 100.0
+    
+    tab_switches = int(record.get("tabSwitches") or record.get("tab_switches") or 0)
 
-    now_iso = record.get("dateIso") or datetime.utcnow().isoformat()
+    # Standardize ISO date
+    date_iso_candidate = record.get("dateIso") or record.get("date_iso")
+    if date_iso_candidate:
+        try:
+            # Validate or normalize ISO string
+            if isinstance(date_iso_candidate, str) and len(date_iso_candidate) >= 10:
+                now_iso = date_iso_candidate
+            else:
+                now_iso = datetime.utcnow().isoformat()
+        except:
+            now_iso = datetime.utcnow().isoformat()
+    elif record.get("timestamp"):
+        try:
+            ts = float(record.get("timestamp"))
+            if ts > 10000000000: # milliseconds
+                ts = ts / 1000.0
+            now_iso = datetime.utcfromtimestamp(ts).isoformat()
+        except:
+            now_iso = datetime.utcnow().isoformat()
+    else:
+        now_iso = datetime.utcnow().isoformat()
 
-    radar_json = json.dumps(record.get("radarSkills") or [])
-    comm_json = json.dumps(record.get("communicationAnalysis") or {})
-    ai_json = json.dumps(record.get("aiAnalysis") or {})
-    topics_json = json.dumps(record.get("topicsToRevise") or [])
-    questions_json = json.dumps(record.get("evaluatedQuestions") or [])
-    dsa_json = json.dumps(record.get("dsaSummary") or {})
+    radar_raw = record.get("radarSkills") or record.get("radar_skills") or []
+    radar_json = json.dumps(radar_raw if isinstance(radar_raw, (list, dict)) else [])
+
+    comm_raw = record.get("communicationAnalysis") or record.get("communication_analysis") or {}
+    comm_json = json.dumps(comm_raw if isinstance(comm_raw, dict) else {})
+
+    ai_raw = record.get("aiAnalysis") or record.get("ai_analysis") or {}
+    ai_json = json.dumps(ai_raw if isinstance(ai_raw, dict) else {})
+
+    topics_raw = record.get("topicsToRevise") or record.get("topics_to_revise") or []
+    topics_json = json.dumps(topics_raw if isinstance(topics_raw, list) else [])
+
+    questions_raw = record.get("evaluatedQuestions") or record.get("evaluated_questions") or []
+    questions_json = json.dumps(questions_raw if isinstance(questions_raw, list) else [])
+
+    dsa_raw = record.get("dsaSummary") or record.get("dsa_summary") or {}
+    dsa_json = json.dumps(dsa_raw if isinstance(dsa_raw, dict) else {})
 
     try:
         cursor.execute("""
@@ -226,7 +263,12 @@ def insert_interview_record(record: Dict[str, Any]) -> str:
         cursor.execute("""
         INSERT INTO users (user_id, name, branch, year, role, created_at, last_active, role_type)
         VALUES (?, ?, ?, ?, ?, ?, ?, 'user')
-        ON CONFLICT(user_id) DO UPDATE SET last_active = excluded.last_active, name = excluded.name
+        ON CONFLICT(user_id) DO UPDATE SET
+            last_active = excluded.last_active,
+            name = excluded.name,
+            branch = excluded.branch,
+            year = excluded.year,
+            role = excluded.role
         """, (user_id, user_name, branch, year, role, now_iso, now_iso))
 
         conn.commit()

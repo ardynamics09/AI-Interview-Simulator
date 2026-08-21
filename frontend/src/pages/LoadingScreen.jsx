@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { questionBank } from "../data/questions";
+import { getApiBaseUrl } from "../services/adminApi";
 
 function LoadingScreen() {
   const navigate = useNavigate();
@@ -12,7 +13,7 @@ function LoadingScreen() {
     interviewData?.interviewType === "Full Interview Simulation";
 
   const requestSent = useRef(false);
-  const API_URL = "http://127.0.0.1:8000";
+  const API_URL = getApiBaseUrl();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

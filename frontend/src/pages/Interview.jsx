@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { speakText, stopSpeech, unlockAudio, createSpeechRecognizer } from "../utils/voiceUtils";
 import ProctorCamera from "../components/ProctorCamera";
+import { getApiBaseUrl } from "../services/adminApi";
 
 function Interview() {
   const location = useLocation();
@@ -370,7 +371,7 @@ function Interview() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-        const response = await fetch("http://127.0.0.1:8000/generate-followup", {
+        const response = await fetch(`${getApiBaseUrl()}/generate-followup`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
