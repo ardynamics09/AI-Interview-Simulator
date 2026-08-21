@@ -79,13 +79,13 @@ export function computeInterviewReadiness(overallScore, commScore = 0, techScore
 const BRANCH_KEYWORDS = {
   CSE: ["dsa", "oop", "dbms", "sql", "operating system", "networks", "tcp", "udp", "thread", "process", "cache", "latency", "algorithm", "complexity", "index", "normalization", "polymorphism", "inheritance", "binary", "tree", "graph", "hashmap", "queue", "stack"],
   IT: ["rest", "api", "jwt", "cloud", "aws", "docker", "frontend", "backend", "dbms", "sql", "react", "security", "http", "authentication", "database", "mongodb", "fastapi", "node"],
-  MNC: ["statistics", "probability", "linear algebra", "calculus", "machine learning", "matrix", "hypothesis", "variance", "correlation", "regression", "dsa", "optimization", "numerical"],
-  "CS Design": ["ui", "ux", "figma", "wireframe", "accessibility", "responsive", "css", "component", "usability", "typography", "design system", "dom", "animation"],
-  ECE: ["microcontroller", "embedded", "signal", "rtos", "vlsi", "fpga", "uart", "spi", "i2c", "circuit", "analog", "digital", "frequency", "sensor"],
-  EV: ["bms", "battery", "powertrain", "can", "thermal", "inverter", "regenerative", "motor", "torque", "voltage", "current", "pack"],
-  Mechanical: ["thermodynamics", "fluid", "stress", "cad", "fea", "manufacturing", "strain", "cam", "heat transfer", "tolerance", "dynamics"],
-  Chemical: ["distillation", "reaction", "reactor", "heat exchanger", "mass transfer", "kinetics", "fluid dynamics", "equilibrium", "separation"],
-  Petroleum: ["reservoir", "drilling", "permeability", "porosity", "eor", "well", "logging", "viscosity", "hydrocarbon", "pressure", "mud"]
+  MNC: ["statistics", "probability", "linear algebra", "calculus", "machine learning", "matrix", "hypothesis", "p-value", "variance", "correlation", "regression", "optimization", "numerical", "sql", "window", "eda", "pca", "distribution", "normal", "anova"],
+  "CS Design": ["ui", "ux", "figma", "wireframe", "accessibility", "wcag", "responsive", "css", "component", "usability", "typography", "design system", "token", "heuristic", "nielsen", "grid", "contrast", "prototype", "interaction", "animation", "user"],
+  ECE: ["microcontroller", "embedded", "signal", "rtos", "vlsi", "fpga", "verilog", "vhdl", "rtl", "uart", "spi", "i2c", "can", "circuit", "analog", "digital", "frequency", "sensor", "sta", "timing", "setup", "hold", "fsm", "op-amp", "filter", "modulation"],
+  EV: ["bms", "battery", "soc", "soh", "dod", "powertrain", "inverter", "regenerative", "motor", "bldc", "pmsm", "foc", "torque", "voltage", "current", "pack", "thermal", "cooling", "can", "charger", "cell", "balancing", "runaway"],
+  Mechanical: ["thermodynamics", "entropy", "enthalpy", "stress", "strain", "mohr", "von mises", "cad", "cam", "fea", "manufacturing", "heat transfer", "conduction", "convection", "tolerance", "gd&t", "gear", "clutch", "bearing", "dynamics", "fluid", "hydraulics", "pneumatics", "turbine", "engine", "cycle", "rankine", "otto", "carnot"],
+  Chemical: ["reaction", "kinetics", "distillation", "reactor", "cstr", "pfr", "heat exchanger", "lmtd", "mass transfer", "fluid dynamics", "equilibrium", "separation", "p&id", "hazop", "thermodynamics", "reflux", "bernoulli", "pump", "valve", "cavitation", "reynolds", "absorption", "catalyst", "safety", "plant", "process", "piping", "pressure", "viscosity"],
+  Petroleum: ["reservoir", "drilling", "permeability", "porosity", "eor", "well", "logging", "viscosity", "hydrocarbon", "pressure", "mud", "bop", "blowout", "casing", "cementing", "darcy", "lift", "esp", "formation", "offshore", "pipeline", "pvt"]
 };
 
 const HR_KEYWORDS = [
@@ -685,18 +685,7 @@ export function computeInterviewAnalytics({
         summary: `No answers were submitted during this ${interviewType} session. To receive an evaluation of your skills, competencies, and readiness, please attempt the questions in your next simulation.`
       },
       technicalProficiency: [],
-      topicsToRevise: isHR
-        ? [
-            "Crafting a compelling 2-minute elevator pitch (Tell me about yourself)",
-            "Structuring behavioral answers using STAR (Situation, Task, Action, Result)",
-            "Articulating 3-to-5 year career goals clearly",
-            "Demonstrating conflict resolution and cross-team collaboration"
-          ]
-        : [
-            `Core ${branch} fundamentals & standard interview patterns`,
-            "Data structures and algorithmic time/space complexities",
-            "System architecture design trade-offs and edge-case handling"
-          ],
+      topicsToRevise: getDomainTopicsToRevise(branch, role, isHR),
       projectEvaluation: null,
       mlReadiness: {
         score: 0,
@@ -710,26 +699,7 @@ export function computeInterviewAnalytics({
         }
       },
       evaluatedQuestions,
-      actionPlan: {
-        priority1: {
-          topic: "Attempt All Interview Questions",
-          priority: "High Priority",
-          action: "Never leave questions blank. Communicate your baseline thought process to secure evaluation points."
-        },
-        priority2: {
-          topic: isHR ? "STAR Framework Practice" : "Technical Fundamentals Practice",
-          priority: "High Priority",
-          action: isHR
-            ? "Practice framing real experiences with Situation, Task, Action, and measurable Results."
-            : "Review core branch concepts and practice explaining technical trade-offs out loud."
-        },
-        priority3: {
-          topic: "Time Management & Pacing",
-          priority: "Medium Priority",
-          action: "Allocate 1-2 minutes per response to provide complete, well-reasoned answers."
-        },
-        recommendedNextInterview: `${interviewType} — Retry Session`
-      }
+      actionPlan: getDomainActionPlan(branch, role, isHR)
     };
   }
 
@@ -798,32 +768,14 @@ export function computeInterviewAnalytics({
     ];
   }
 
-  // Technical Domain Breakdown (Only for Technical, AI Mock, Full Interview)
+  // Technical Domain Breakdown (Tailored dynamically to candidate's branch & role)
   let technicalProficiency = [];
   if (!isHR) {
-    technicalProficiency = [
-      { topic: "Data Structures & Algorithms", score: Math.min(95, Math.max(10, overallScore - 4)) },
-      { topic: "Object-Oriented Programming (OOP)", score: Math.min(96, Math.max(10, overallScore + 3)) },
-      { topic: "Database Management & SQL (DBMS)", score: Math.min(92, Math.max(10, overallScore - 10)) },
-      { topic: "Operating Systems & Networking", score: Math.min(90, Math.max(10, overallScore - 6)) },
-      { topic: "Frameworks & Architecture", score: Math.min(98, Math.max(10, overallScore + 5)) },
-      { topic: "Practical Problem Solving & Debugging", score: Math.min(94, Math.max(10, overallScore - 2)) }
-    ];
+    technicalProficiency = getDomainTechnicalProficiency(branch, role, overallScore);
   }
 
-  // Topics to Revise
-  const topicsToRevise = isHR
-    ? [
-        "Crafting a structured 2-minute elevator pitch with key career milestones",
-        "Answering situational questions with the STAR method (quantified results)",
-        "Demonstrating conflict resolution and constructive team feedback"
-      ]
-    : [
-        "Database Normalization (1NF, 2NF, 3NF & BCNF) and Indexing Performance",
-        "Process vs Thread Memory Sharing & Concurrency Pitfalls",
-        "Time & Space Complexity Proofs for Dynamic Programming & Graphs",
-        "Scalable System Architecture & Load Balancing Strategies"
-      ];
+  // Topics to Revise (Tailored dynamically to branch & role)
+  const topicsToRevise = getDomainTopicsToRevise(branch, role, isHR);
 
   // Project & Resume Evaluation (ONLY when resume/projects were uploaded)
   let projectEvaluation = null;
@@ -840,7 +792,7 @@ export function computeInterviewAnalytics({
       projectUnderstanding: Math.min(96, Math.max(20, Math.round(overallScore * 0.9 + 6))),
       technicalDepth: Math.min(94, Math.max(20, Math.round(overallScore))),
       projectScores: pScores,
-      feedback: `You demonstrated familiarity with your project ${projects[0]}. Be prepared to explain low-level scaling trade-offs and error recovery in subsequent rounds.`
+      feedback: `You demonstrated familiarity with your project ${projects[0]}. Be prepared to explain technical trade-offs, design choices, and real-world boundary constraints in subsequent rounds.`
     };
   }
 
@@ -869,73 +821,11 @@ export function computeInterviewAnalytics({
     mlReadinessStatus = "NEEDS REVISION";
   }
 
-  // Strengths & Weaknesses
-  const strengths = isHR
-    ? [
-        "Provided relevant career context and aligned with target role expectations.",
-        "Demonstrated clear communication structure when explaining team scenarios.",
-        "Maintained professional tone and concise delivery."
-      ]
-    : [
-        "Demonstrated technical awareness across core fundamental topics.",
-        "Maintained relevance when addressing primary engineering concepts.",
-        "Showed logical reasoning when formulating technical solutions."
-      ];
+  // Strengths, Weaknesses, and Qualitative AI Feedback (Branch-tailored)
+  const { strengths, weaknesses, summary: aiSummary } = getDomainWeaknessesAndSummary(branch, role, tabSwitches, isHR);
 
-  const weaknesses = isHR
-    ? [
-        "Structure behavioral examples strictly with Situation, Task, Action, and measurable Results.",
-        "Elaborate more on specific personal contributions rather than general team actions.",
-        tabSwitches > 0 ? `Proctor detected ${tabSwitches} window switches during the session.` : "State concrete long-term professional milestones."
-      ]
-    : [
-        "Some technical answers lacked structured trade-off comparisons.",
-        "Deepen theoretical explanations for system architecture and database concurrency.",
-        tabSwitches > 0 ? `Proctor recorded ${tabSwitches} window switches during evaluation.` : "Quantify performance impacts with time/space complexity or latency metrics."
-      ];
-
-  const aiSummary = isHR
-    ? `You demonstrated solid communication clarity and cultural motivation for the ${role} position. To reach top-tier hiring confidence, focus on framing your past project challenges with quantified results and clearly articulated personal initiative.`
-    : `You demonstrated sound technical fundamentals for the ${role} role in ${branch}. Your primary growth area is substantiating architecture claims with explicit algorithmic complexities and trade-off comparisons.`;
-
-  // Career Action Plan
-  const actionPlan = isHR
-    ? {
-        priority1: {
-          topic: "STAR Behavioral Framing",
-          priority: "High Priority",
-          action: "Structure your responses into Situation, Task, Action taken, and quantifiable Result."
-        },
-        priority2: {
-          topic: "Personal Impact & Leadership",
-          priority: "Medium Priority",
-          action: "Highlight specific individual contributions in team projects rather than generic group actions."
-        },
-        priority3: {
-          topic: "Long-Term Career Narrative",
-          priority: "Medium Priority",
-          action: "Articulate a clear 3-5 year technical roadmap showing continuous learning and mentorship."
-        },
-        recommendedNextInterview: "HR Interview — Advanced Behavioral Round"
-      }
-    : {
-        priority1: {
-          topic: "DBMS & SQL Query Optimization",
-          priority: "High Priority",
-          action: "Revise 3NF vs BCNF normalization, B-Tree indexes, and ACID transaction isolation levels."
-        },
-        priority2: {
-          topic: "Structured Technical Communication",
-          priority: "Medium Priority",
-          action: "Adopt clear technical framing (Definition &rarr; Project Example &rarr; Trade-offs)."
-        },
-        priority3: {
-          topic: "System Design & Edge-Case Handling",
-          priority: "Medium Priority",
-          action: "Practice designing scalable backend services handling concurrency, caching, and rate limiting."
-        },
-        recommendedNextInterview: "Technical Interview — Medium/Hard Difficulty"
-      };
+  // Career Action Plan (Branch-tailored)
+  const actionPlan = getDomainActionPlan(branch, role, isHR);
 
   return {
     overallScore,
@@ -987,17 +877,451 @@ export function computeInterviewAnalytics({
 }
 
 /**
+ * =========================================================================
+ * DOMAIN-SPECIFIC ENGINEERING INTELLIGENCE HELPERS
+ * Dynamically provides branch-accurate breakdowns, revision priorities,
+ * qualitative summaries, and action plans for all engineering streams.
+ * =========================================================================
+ */
+
+export function getDomainTechnicalProficiency(branch = "CSE", role = "Software Engineer", overallScore = 70) {
+  const b = (branch || "").trim();
+
+  if (b === "Chemical") {
+    return [
+      { topic: "Chemical Reaction Engineering & Kinetics", score: Math.min(96, Math.max(10, overallScore + 3)) },
+      { topic: "Heat Transfer & Exchanger Sizing", score: Math.min(94, Math.max(10, overallScore - 2)) },
+      { topic: "Mass Transfer Operations & Distillation", score: Math.min(92, Math.max(10, overallScore - 6)) },
+      { topic: "Fluid Dynamics & Piping Systems", score: Math.min(95, Math.max(10, overallScore + 2)) },
+      { topic: "Process Safety, HAZOP & Plant Operations", score: Math.min(98, Math.max(10, overallScore + 5)) },
+      { topic: "Thermodynamics & Material/Energy Balance", score: Math.min(90, Math.max(10, overallScore - 8)) }
+    ];
+  }
+
+  if (b === "Mechanical") {
+    return [
+      { topic: "Thermodynamics & Heat Transfer Cycles", score: Math.min(95, Math.max(10, overallScore + 2)) },
+      { topic: "Strength of Materials & FEA Analysis", score: Math.min(94, Math.max(10, overallScore - 3)) },
+      { topic: "Fluid Mechanics & Hydraulic Machinery", score: Math.min(92, Math.max(10, overallScore - 5)) },
+      { topic: "Kinematics & Theory of Machines", score: Math.min(96, Math.max(10, overallScore + 4)) },
+      { topic: "Manufacturing Processes & Material Science", score: Math.min(93, Math.max(10, overallScore - 2)) },
+      { topic: "CAD Modeling, GD&T & Tolerancing", score: Math.min(97, Math.max(10, overallScore + 5)) }
+    ];
+  }
+
+  if (b === "ECE") {
+    return [
+      { topic: "Digital Logic & Verilog/VHDL RTL Design", score: Math.min(95, Math.max(10, overallScore + 3)) },
+      { topic: "Microcontrollers, RTOS & Embedded C", score: Math.min(94, Math.max(10, overallScore - 2)) },
+      { topic: "Signals, Systems & DSP Algorithms", score: Math.min(91, Math.max(10, overallScore - 7)) },
+      { topic: "Analog Circuit Design & Op-Amps", score: Math.min(93, Math.max(10, overallScore - 4)) },
+      { topic: "Communication Protocols (UART, SPI, I2C, CAN)", score: Math.min(97, Math.max(10, overallScore + 5)) },
+      { topic: "VLSI Architecture & Static Timing Analysis", score: Math.min(92, Math.max(10, overallScore - 6)) }
+    ];
+  }
+
+  if (b === "EV") {
+    return [
+      { topic: "Battery Chemistries & Cell Modeling (Li-ion/LFP)", score: Math.min(96, Math.max(10, overallScore + 4)) },
+      { topic: "BMS State Estimation (SOC/SOH) & Cell Balancing", score: Math.min(94, Math.max(10, overallScore - 2)) },
+      { topic: "Power Electronics & Inverter Topologies", score: Math.min(92, Math.max(10, overallScore - 5)) },
+      { topic: "Electric Motor Control (BLDC/PMSM & FOC)", score: Math.min(95, Math.max(10, overallScore + 2)) },
+      { topic: "Thermal Management & Battery Pack Cooling", score: Math.min(97, Math.max(10, overallScore + 5)) },
+      { topic: "Automotive CAN Bus & ISO 26262 Safety", score: Math.min(91, Math.max(10, overallScore - 7)) }
+    ];
+  }
+
+  if (b === "Petroleum") {
+    return [
+      { topic: "Reservoir Engineering & Darcy Fluid Flow", score: Math.min(95, Math.max(10, overallScore + 2)) },
+      { topic: "Drilling Operations & Mud Hydraulics", score: Math.min(94, Math.max(10, overallScore - 3)) },
+      { topic: "Well Logging & Formation Evaluation", score: Math.min(92, Math.max(10, overallScore - 6)) },
+      { topic: "Production Engineering & Artificial Lift (ESP)", score: Math.min(96, Math.max(10, overallScore + 4)) },
+      { topic: "Enhanced Oil Recovery (EOR) & PVT Analysis", score: Math.min(91, Math.max(10, overallScore - 7)) },
+      { topic: "Offshore Well Control & Safety Protocols", score: Math.min(98, Math.max(10, overallScore + 6)) }
+    ];
+  }
+
+  if (b === "CS Design") {
+    return [
+      { topic: "UX Research & User Journey Mapping", score: Math.min(96, Math.max(10, overallScore + 4)) },
+      { topic: "Design Systems & Modular Figma Components", score: Math.min(98, Math.max(10, overallScore + 6)) },
+      { topic: "UI Visual Hierarchy, Layout & Typography", score: Math.min(95, Math.max(10, overallScore + 2)) },
+      { topic: "Interaction Design & Micro-animations", score: Math.min(92, Math.max(10, overallScore - 4)) },
+      { topic: "Web Accessibility (WCAG 2.1 AA Standards)", score: Math.min(90, Math.max(10, overallScore - 8)) },
+      { topic: "Usability Testing & Heuristic Evaluation", score: Math.min(94, Math.max(10, overallScore - 2)) }
+    ];
+  }
+
+  if (b === "MNC") {
+    return [
+      { topic: "Statistical Inference & Hypothesis Testing", score: Math.min(95, Math.max(10, overallScore + 3)) },
+      { topic: "Machine Learning & Predictive Modeling", score: Math.min(94, Math.max(10, overallScore - 2)) },
+      { topic: "Advanced SQL & Data Aggregations", score: Math.min(97, Math.max(10, overallScore + 5)) },
+      { topic: "Linear Algebra & Matrix Decompositions", score: Math.min(91, Math.max(10, overallScore - 7)) },
+      { topic: "Exploratory Data Analysis (EDA) & Metrics", score: Math.min(96, Math.max(10, overallScore + 4)) },
+      { topic: "A/B Testing & Business Impact Modeling", score: Math.min(92, Math.max(10, overallScore - 5)) }
+    ];
+  }
+
+  // CSE, IT & General Software
+  return [
+    { topic: "Data Structures & Algorithms", score: Math.min(95, Math.max(10, overallScore - 4)) },
+    { topic: "Object-Oriented Programming (OOP)", score: Math.min(96, Math.max(10, overallScore + 3)) },
+    { topic: "Database Management & SQL (DBMS)", score: Math.min(92, Math.max(10, overallScore - 10)) },
+    { topic: "Operating Systems & Networking", score: Math.min(90, Math.max(10, overallScore - 6)) },
+    { topic: "Frameworks & Architecture", score: Math.min(98, Math.max(10, overallScore + 5)) },
+    { topic: "Practical Problem Solving & Debugging", score: Math.min(94, Math.max(10, overallScore - 2)) }
+  ];
+}
+
+export function getDomainTopicsToRevise(branch = "CSE", role = "Software Engineer", isHR = false) {
+  if (isHR) {
+    return [
+      "Crafting a structured 2-minute elevator pitch with key career milestones",
+      "Answering situational questions with the STAR method (quantified results)",
+      "Demonstrating conflict resolution and constructive team feedback",
+      "Articulating 3-to-5 year career goals and cultural alignment"
+    ];
+  }
+
+  const b = (branch || "").trim();
+
+  if (b === "Chemical") {
+    return [
+      "Distillation Column Equilibrium (McCabe-Thiele Method) & Reflux Ratio Optimization",
+      "P&ID (Piping and Instrumentation Diagrams) & HAZOP Safety Risk Analysis",
+      "Heat Exchanger LMTD Calculations & Shell-and-Tube Configuration",
+      "Chemical Reactor Design (CSTR, PFR) and Reaction Kinetics Rate Laws"
+    ];
+  }
+
+  if (b === "Mechanical") {
+    return [
+      "Stress-Strain Mohr's Circle & Multi-axial Failure Criteria (Von Mises)",
+      "Thermodynamic Power & Refrigeration Cycles (Rankine, Brayton, Carnot)",
+      "GD&T (Geometric Dimensioning & Tolerancing) and Tolerance Stackup",
+      "Material Heat Treatment, Fatigue Life & Creep Mechanisms"
+    ];
+  }
+
+  if (b === "ECE") {
+    return [
+      "Static Timing Analysis (STA), Setup/Hold Slack & Metastability",
+      "RTOS Task Priority Inversion, Mutexes & Interrupt Service Latency",
+      "FSM State Minimization & Clock Domain Crossing (CDC) Synchronizers",
+      "Analog Filter Topologies & Operational Amplifier Frequency Compensation"
+    ];
+  }
+
+  if (b === "EV") {
+    return [
+      "Extended Kalman Filter (EKF) vs Coulomb Counting for SOC Estimation",
+      "Field Oriented Control (FOC) & Space Vector PWM in Inverters",
+      "Active vs Passive Cell Balancing and Thermal Runaway Propagation Control",
+      "CAN 2.0B / CAN-FD Bus Protocol Arbitration & Fault Handling"
+    ];
+  }
+
+  if (b === "Petroleum") {
+    return [
+      "Material Balance Equations (MBE) & Reservoir Decline Curve Analysis",
+      "Well Blowout Prevention (BOP), Kick Tolerance & Mud Weight Calculations",
+      "Archie's Equation & Porosity-Permeability Log Interpretation",
+      "Artificial Lift Optimization (Gas Lift vs ESP vs Rod Pumps)"
+    ];
+  }
+
+  if (b === "CS Design") {
+    return [
+      "WCAG 2.1 Contrast Ratios, Accessible Navigation & Screen Reader Flow",
+      "Design Token Architecture, Auto-layout & Figma Variant Properties",
+      "User Journey Mapping, Heuristic Evaluations & Usability Friction Points",
+      "8-Point Grid Alignment & Touch Target Accessibility (Min 44x44px)"
+    ];
+  }
+
+  if (b === "MNC") {
+    return [
+      "Hypothesis Testing (p-value, Type I/II Errors, ANOVA, Chi-Square)",
+      "Bias-Variance Trade-off, Regularization (L1/L2), and Cross-Validation",
+      "SQL Window Functions (ROW_NUMBER, DENSE_RANK, LEAD/LAG, PARTITION BY)",
+      "PCA Dimensionality Reduction, Covariance Matrices & Eigenvalues"
+    ];
+  }
+
+  return [
+    "Database Normalization (1NF, 2NF, 3NF & BCNF) and Indexing Performance",
+    "Process vs Thread Memory Sharing & Concurrency Pitfalls",
+    "Time & Space Complexity Proofs for Dynamic Programming & Graphs",
+    "Scalable System Architecture & Load Balancing Strategies"
+  ];
+}
+
+export function getDomainWeaknessesAndSummary(branch = "CSE", role = "Software Engineer", tabSwitches = 0, isHR = false) {
+  if (isHR) {
+    return {
+      strengths: [
+        "Provided relevant career context and aligned with target role expectations.",
+        "Demonstrated clear communication structure when explaining team scenarios.",
+        "Maintained professional tone and concise delivery."
+      ],
+      weaknesses: [
+        "Structure behavioral examples strictly with Situation, Task, Action, and measurable Results.",
+        "Elaborate more on specific personal contributions rather than general team actions.",
+        tabSwitches > 0 ? `Proctor detected ${tabSwitches} window switches during the session.` : "State concrete long-term professional milestones."
+      ],
+      summary: `You demonstrated solid communication clarity and cultural motivation for the ${role} position. To reach top-tier hiring confidence, focus on framing your past project challenges with quantified results and clearly articulated personal initiative.`
+    };
+  }
+
+  const b = (branch || "").trim();
+  let growthArea = "Deepen theoretical explanations for system architecture and database concurrency.";
+  let summaryText = `You demonstrated sound technical fundamentals for the ${role} role in ${branch}. Your primary growth area is substantiating architecture claims with explicit trade-off comparisons.`;
+
+  if (b === "Chemical") {
+    growthArea = "Deepen theoretical explanations for unit operations, heat/mass transfer, and process safety standards (HAZOP).";
+    summaryText = `You demonstrated sound technical fundamentals for the ${role} role in Chemical Engineering. Your primary growth area is substantiating process design choices with explicit thermodynamic equations, mass/heat transfer calculations, and plant safety standards.`;
+  } else if (b === "Mechanical") {
+    growthArea = "Deepen theoretical explanations for structural mechanics, thermodynamic cycles, and manufacturing constraints.";
+    summaryText = `You demonstrated solid engineering fundamentals for the ${role} role in Mechanical Engineering. Your primary growth area is explaining failure theories, GD&T tolerancing, and thermodynamic trade-offs with concrete calculations.`;
+  } else if (b === "ECE") {
+    growthArea = "Deepen theoretical explanations for static timing analysis, RTOS task synchronization, and clock domain crossing.";
+    summaryText = `You demonstrated strong core understanding for the ${role} role in Electronics & Communication. Your primary growth area is substantiating hardware architecture claims with explicit timing parameters and protocol trade-offs.`;
+  } else if (b === "EV") {
+    growthArea = "Deepen theoretical explanations for BMS cell balancing algorithms, motor drive vector control, and thermal runaway mitigation.";
+    summaryText = `You demonstrated sound knowledge for the ${role} role in Electric Vehicles. Your primary growth area is explaining power electronics inverter switching, battery state estimation formulas, and pack cooling trade-offs.`;
+  } else if (b === "Petroleum") {
+    growthArea = "Deepen theoretical explanations for reservoir decline curves, drilling hydraulics, and well control BOP procedures.";
+    summaryText = `You demonstrated solid technical awareness for the ${role} role in Petroleum Engineering. Your primary growth area is backing up production claims with Darcy flow formulas, log evaluation metrics, and offshore safety standards.`;
+  } else if (b === "CS Design") {
+    growthArea = "Deepen explanations for design system tokenization, accessibility (WCAG 2.1 AA) compliance, and quantitative usability metrics.";
+    summaryText = `You demonstrated great design intuition for the ${role} position. Your primary growth area is structuring design rationale with clear user research data, accessibility standards, and heuristic evaluation principles.`;
+  } else if (b === "MNC") {
+    growthArea = "Deepen theoretical explanations for statistical hypothesis testing, SQL window functions, and model evaluation metrics.";
+    summaryText = `You demonstrated solid quantitative aptitude for the ${role} role in Mathematics & Computing. Your primary growth area is explaining p-value interpretations, dimensionality reduction (PCA), and bias-variance trade-offs with rigorous mathematical framing.`;
+  }
+
+  return {
+    strengths: [
+      `Demonstrated technical awareness across core fundamental topics in ${branch}.`,
+      `Maintained relevance when addressing primary engineering concepts.`,
+      `Showed logical reasoning when formulating technical solutions.`
+    ],
+    weaknesses: [
+      "Some technical answers lacked structured engineering trade-off comparisons.",
+      growthArea,
+      tabSwitches > 0 ? `Proctor recorded ${tabSwitches} window switches during evaluation.` : `Substantiate engineering answers with concrete formulas, project metrics, and real-world constraints.`
+    ],
+    summary: summaryText
+  };
+}
+
+export function getDomainActionPlan(branch = "CSE", role = "Software Engineer", isHR = false) {
+  if (isHR) {
+    return {
+      priority1: {
+        topic: "STAR Behavioral Framing",
+        priority: "High Priority",
+        action: "Structure your responses into Situation, Task, Action taken, and quantifiable Result."
+      },
+      priority2: {
+        topic: "Personal Impact & Leadership",
+        priority: "Medium Priority",
+        action: "Highlight specific individual contributions in team projects rather than generic group actions."
+      },
+      priority3: {
+        topic: "Long-Term Career Narrative",
+        priority: "Medium Priority",
+        action: "Articulate a clear 3-5 year technical roadmap showing continuous learning and mentorship."
+      },
+      recommendedNextInterview: "HR Interview — Advanced Behavioral Round"
+    };
+  }
+
+  const b = (branch || "").trim();
+
+  if (b === "Chemical") {
+    return {
+      priority1: {
+        topic: "Process Safety & HAZOP Protocols",
+        priority: "High Priority",
+        action: "Revise hazard identification, pressure relief valve sizing, and chemical plant shutdown mechanisms."
+      },
+      priority2: {
+        topic: "Structured Engineering Delivery",
+        priority: "Medium Priority",
+        action: "Adopt clear technical framing (Process Parameter &rarr; Physical Mechanism &rarr; Safety/Cost Trade-offs)."
+      },
+      priority3: {
+        topic: "Unit Operations & Mass/Heat Balance",
+        priority: "Medium Priority",
+        action: "Practice steady-state mass & energy balances, distillation sizing, and reactor kinetics equations."
+      },
+      recommendedNextInterview: "Chemical Technical Interview — Medium/Hard Difficulty"
+    };
+  }
+
+  if (b === "Mechanical") {
+    return {
+      priority1: {
+        topic: "Solid Mechanics & Failure Criteria",
+        priority: "High Priority",
+        action: "Revise fatigue life calculations, stress concentration factors, and Mohr's Circle analysis."
+      },
+      priority2: {
+        topic: "Manufacturing & GD&T Standards",
+        priority: "Medium Priority",
+        action: "Master geometric tolerances, machining allowances, and DFM (Design for Manufacturing) guidelines."
+      },
+      priority3: {
+        topic: "Thermal & Fluid System Optimization",
+        priority: "Medium Priority",
+        action: "Practice thermodynamic cycle efficiency calculations and fluid pressure drop estimations."
+      },
+      recommendedNextInterview: "Mechanical Technical Interview — Medium/Hard Difficulty"
+    };
+  }
+
+  if (b === "ECE") {
+    return {
+      priority1: {
+        topic: "Static Timing Analysis & CDC",
+        priority: "High Priority",
+        action: "Revise setup/hold slack calculations, metastable states, and dual-clock FIFO synchronizers."
+      },
+      priority2: {
+        topic: "Embedded Protocols & RTOS Design",
+        priority: "Medium Priority",
+        action: "Practice multi-threaded RTOS task priorities, ISR safety, and bus protocol arbitration."
+      },
+      priority3: {
+        topic: "Hardware Architecture & Verification",
+        priority: "Medium Priority",
+        action: "Review FSM synthesis, power optimization, and system-level testbench writing."
+      },
+      recommendedNextInterview: "ECE Hardware & Embedded Interview — Advanced Round"
+    };
+  }
+
+  if (b === "EV") {
+    return {
+      priority1: {
+        topic: "BMS Algorithms & Cell Balancing",
+        priority: "High Priority",
+        action: "Revise state of charge estimation formulas, thermal runaway mitigation, and cell balancing circuits."
+      },
+      priority2: {
+        topic: "Traction Motor & Inverter Control",
+        priority: "Medium Priority",
+        action: "Practice Field-Oriented Control equations, torque-speed curves, and regenerative braking limits."
+      },
+      priority3: {
+        topic: "Thermal Safety & Packaging",
+        priority: "Medium Priority",
+        action: "Review phase change cooling, liquid jacket pressure drops, and thermal barrier sizing."
+      },
+      recommendedNextInterview: "EV Powertrain & BMS Interview — Advanced Round"
+    };
+  }
+
+  if (b === "Petroleum") {
+    return {
+      priority1: {
+        topic: "Well Control & Drilling Hydraulics",
+        priority: "High Priority",
+        action: "Master hydrostatic pressure, kick tolerance margins, and choke manifold operation."
+      },
+      priority2: {
+        topic: "Reservoir Flow & Material Balance",
+        priority: "Medium Priority",
+        action: "Revise Darcy's multi-phase flow equations, drive mechanisms, and PVT analysis."
+      },
+      priority3: {
+        topic: "Production Optimization & Artificial Lift",
+        priority: "Medium Priority",
+        action: "Practice nodal analysis for inflow/outflow performance and ESP pump sizing."
+      },
+      recommendedNextInterview: "Petroleum Production Interview — Advanced Round"
+    };
+  }
+
+  if (b === "CS Design") {
+    return {
+      priority1: {
+        topic: "Design System Scalability & Tokenization",
+        priority: "High Priority",
+        action: "Build modular component variants, tokens, and auto-layout systems in Figma."
+      },
+      priority2: {
+        topic: "Accessibility (WCAG 2.1) Compliance",
+        priority: "Medium Priority",
+        action: "Ensure 4.5:1 text contrast ratios, accessible focus indicators, and screen reader semantic labeling."
+      },
+      priority3: {
+        topic: "Quantitative Usability Validation",
+        priority: "Medium Priority",
+        action: "Practice A/B test framing, SUS (System Usability Scale) scoring, and user interview scripts."
+      },
+      recommendedNextInterview: "Product Design & UX Portfolio Interview — Advanced Round"
+    };
+  }
+
+  if (b === "MNC") {
+    return {
+      priority1: {
+        topic: "Statistical Hypothesis Testing & A/B Experiments",
+        priority: "High Priority",
+        action: "Revise sample size calculations, p-value interpretation, and non-parametric tests."
+      },
+      priority2: {
+        topic: "SQL Window Functions & Data Pipelines",
+        priority: "Medium Priority",
+        action: "Master CTEs, window aggregations, and query plan indexing for large datasets."
+      },
+      priority3: {
+        topic: "ML Model Evaluation & Trade-offs",
+        priority: "Medium Priority",
+        action: "Practice evaluating Precision-Recall curves, ROC-AUC, and handling severe class imbalances."
+      },
+      recommendedNextInterview: "Data Science & Analytics Interview — Advanced Round"
+    };
+  }
+
+  // CSE / IT Default
+  return {
+    priority1: {
+      topic: "DBMS & SQL Query Optimization",
+      priority: "High Priority",
+      action: "Revise 3NF vs BCNF normalization, B-Tree indexes, and ACID transaction isolation levels."
+    },
+    priority2: {
+      topic: "Structured Technical Communication",
+      priority: "Medium Priority",
+      action: "Adopt clear technical framing (Definition &rarr; Project Example &rarr; Trade-offs)."
+    },
+    priority3: {
+      topic: "System Design & Edge-Case Handling",
+      priority: "Medium Priority",
+      action: "Practice designing scalable backend services handling concurrency, caching, and rate limiting."
+    },
+    recommendedNextInterview: "Technical Interview — Medium/Hard Difficulty"
+  };
+}
+
+/**
  * High-value model answers tailored for HR or Technical questions
  */
-function generateSuggestedModelAnswer(question, branch, role, skills, projects, isHR = false) {
+function generateSuggestedModelAnswer(question, branch = "CSE", role = "Software Engineer", skills = [], projects = [], isHR = false) {
   const qLower = (question || "").toLowerCase();
+  const b = (branch || "").trim();
 
   if (isHR || qLower.includes("tell me about yourself") || qLower.includes("introduce")) {
-    return `A high-scoring answer follows the STAR pattern: (1) Present Background: "I am an engineering student in ${branch} with hands-on focus in ${role}." (2) Key Project/Achievement: Highlight one practical project with concrete outcomes. (3) Future Alignment: "I am passionate about building reliable software and eager to contribute to high-impact engineering teams."`;
+    return `A high-scoring answer follows the STAR pattern: (1) Present Background: "I am an engineering student in ${branch} with hands-on focus in ${role}." (2) Key Project/Achievement: Highlight one practical project with concrete outcomes. (3) Future Alignment: "I am eager to apply my ${branch} engineering knowledge and contribute to high-impact technical teams."`;
   }
 
   if (qLower.includes("strength") || qLower.includes("weakness")) {
-    return "Frame your strength with a concrete project example (e.g. rapid debugging, systematic problem breakdown). Frame your weakness as an area of active learning where you have already implemented an improvement habit.";
+    return "Frame your strength with a concrete project example (e.g. rapid debugging, systematic problem breakdown, process optimization). Frame your weakness as an area of active learning where you have already implemented an improvement habit.";
   }
 
   if (qLower.includes("pressure") || qLower.includes("deadline") || qLower.includes("conflict")) {
@@ -1012,5 +1336,34 @@ function generateSuggestedModelAnswer(question, branch, role, skills, projects, 
     return "Normalization is the systematic design process of decomposing tables to eliminate redundant data and avoid insertion, update, and deletion anomalies. 3NF ensures that every non-prime attribute is non-transitively dependent on every candidate key.";
   }
 
+  if (b === "Chemical") {
+    return "A high-scoring Chemical Engineering answer states: (1) Fundamental unit operation mechanism (mass/heat transfer, reaction kinetics, or fluid mechanics), (2) Practical plant/equipment sizing and operation (distillation, reactor, heat exchanger), (3) Process safety (HAZOP/P&ID), energy efficiency, and operational trade-offs.";
+  }
+
+  if (b === "Mechanical") {
+    return "A high-scoring Mechanical Engineering answer states: (1) Core physical principle and governing equations (thermodynamics, fluid mechanics, stress-strain), (2) Real-world component design, material selection, and CAD/FEA methodology, (3) Manufacturing constraints, GD&T tolerancing, and safety factors.";
+  }
+
+  if (b === "ECE") {
+    return "A high-scoring ECE answer states: (1) Hardware architecture and circuit/logic mechanism (RTL, embedded C, timing constraints), (2) Protocol or interface implementation (SPI/I2C/UART/CAN), (3) Power, frequency, setup/hold slack, and clock-domain trade-offs.";
+  }
+
+  if (b === "EV") {
+    return "A high-scoring EV Engineering answer states: (1) Powertrain / Battery management principle (SOC estimation, inverter switching, cell balancing), (2) Automotive integration and safety standards (ISO 26262 / CAN bus), (3) Thermal dissipation, efficiency, and range optimization trade-offs.";
+  }
+
+  if (b === "Petroleum") {
+    return "A high-scoring Petroleum Engineering answer states: (1) Geological and fluid mechanism (Darcy flow, reservoir drive, mud hydraulics), (2) Operational procedure and well equipment (casing, BOP, ESP lift), (3) Safety margins, environmental compliance, and recovery efficiency.";
+  }
+
+  if (b === "CS Design") {
+    return "A high-scoring Design answer states: (1) User problem statement and research insights, (2) Visual architecture, design tokens, and modular component hierarchy, (3) Accessibility (WCAG 2.1 AA), usability testing metrics, and design-to-development trade-offs.";
+  }
+
+  if (b === "MNC") {
+    return "A high-scoring Mathematical & Computing answer states: (1) Mathematical foundation and statistical formulation (hypothesis test, linear algebra, ML objective), (2) Algorithmic data processing and SQL implementation, (3) Complexity, bias-variance trade-off, and business metric validation.";
+  }
+
   return "A high-scoring technical answer states: (1) Core definition & mechanism, (2) Real-world practical application or project example, (3) Performance trade-offs (time/space complexity, scalability, or edge cases).";
 }
+

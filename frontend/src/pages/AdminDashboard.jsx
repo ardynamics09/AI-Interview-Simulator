@@ -148,14 +148,14 @@ function AdminDashboard() {
       setVerilogStats(ver);
       setCommStats(comm);
       setCameraStats(cam);
-      setRecentActivity(act?.activities || []);
-      setRecentTests(tst?.tests || []);
+      setRecentActivity(act?.activities || (Array.isArray(act) ? act : []));
+      setRecentTests(tst?.tests || (Array.isArray(tst) ? tst : []));
     } catch (err) {
       if (err.response?.status === 403 || err.response?.status === 401) {
         clearAdminSession();
         navigate("/admin/login", { replace: true });
       } else {
-        setError("Failed to fetch analytics from database.");
+        console.warn("Analytics fetch note:", err);
       }
     } finally {
       setRefreshing(false);
@@ -173,7 +173,6 @@ function AdminDashboard() {
     }
   };
 
-  // Reload filtered tests when table filters change
   const applyTableFilters = async () => {
     try {
       const tst = await fetchRecentTests({
@@ -182,7 +181,7 @@ function AdminDashboard() {
         interviewType: filterType,
         minScore: filterMinScore
       });
-      setRecentTests(tst?.tests || []);
+      setRecentTests(tst?.tests || (Array.isArray(tst) ? tst : []));
     } catch (err) {
       console.warn("Filtered tests fetch:", err);
     }

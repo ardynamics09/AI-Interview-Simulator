@@ -68,7 +68,7 @@ function AdminLogin() {
       await loginAdmin({ email, password, remember: rememberMe });
       navigate("/admin", { replace: true });
     } catch (err) {
-      const msg = err.response?.data?.detail || (err.code === "ERR_NETWORK" ? "Cannot connect to Backend Server (Port 8000). Please start the backend using start_backend.bat!" : "Invalid admin credentials or unauthorized.");
+      const msg = err.response?.data?.detail || (err.message && !err.message.includes("Network Error") ? err.message : "Invalid admin credentials or unauthorized. Please verify your email & password.");
       setError(msg);
     } finally {
       setLoading(false);

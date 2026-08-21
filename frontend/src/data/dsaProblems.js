@@ -39,25 +39,27 @@ You may assume that each input would have exactly one solution, and you may not 
       ],
       starterCode: {
         python: `def twoSum(nums: list[int], target: int) -> list[int]:
-    # TODO: Implement your solution here
-    pass`,
-        cpp: `#include <vector>
-#include <unordered_map>
+    # Write your code here
+    return []`,
+        cpp: `#include <iostream>
+#include <vector>
+#include <algorithm>
 using namespace std;
 
 vector<int> twoSum(vector<int>& nums, int target) {
-    // TODO: Implement your solution here
+    // Write your code here
     return {};
 }`,
         javascript: `function twoSum(nums, target) {
-    // TODO: Implement your solution here
+    // Write your code here
     return [];
 }`,
-        java: `import java.util.HashMap;
+        java: `import java.io.*;
+import java.util.*;
 
 class Solution {
     public int[] twoSum(int[] nums, int target) {
-        // TODO: Implement your solution here
+        // Write your code here
         return new int[]{};
     }
 }`
@@ -93,25 +95,27 @@ An input string is valid if:
       ],
       starterCode: {
         python: `def isValid(s: str) -> bool:
-    # TODO: Implement your solution using a stack
-    pass`,
-        cpp: `#include <string>
-#include <stack>
+    # Write your code here
+    return False`,
+        cpp: `#include <iostream>
+#include <string>
+#include <vector>
 using namespace std;
 
 bool isValid(string s) {
-    // TODO: Implement your solution using a stack
+    // Write your code here
     return false;
 }`,
         javascript: `function isValid(s) {
-    // TODO: Implement your solution using a stack
+    // Write your code here
     return false;
 }`,
-        java: `import java.util.Stack;
+        java: `import java.io.*;
+import java.util.*;
 
 class Solution {
     public boolean isValid(String s) {
-        // TODO: Implement your solution using a stack
+        // Write your code here
         return false;
     }
 }`
@@ -140,25 +144,28 @@ class Solution {
       ],
       starterCode: {
         python: `def lengthOfLongestSubstring(s: str) -> int:
-    # TODO: Implement sliding window solution
+    # Write your code here
     return 0`,
-        cpp: `#include <string>
-#include <unordered_map>
+        cpp: `#include <iostream>
+#include <string>
+#include <vector>
+#include <algorithm>
 using namespace std;
 
 int lengthOfLongestSubstring(string s) {
-    // TODO: Implement sliding window solution
+    // Write your code here
     return 0;
 }`,
         javascript: `function lengthOfLongestSubstring(s) {
-    // TODO: Implement sliding window solution
+    // Write your code here
     return 0;
 }`,
-        java: `import java.util.HashMap;
+        java: `import java.io.*;
+import java.util.*;
 
 class Solution {
     public int lengthOfLongestSubstring(String s) {
-        // TODO: Implement sliding window solution
+        // Write your code here
         return 0;
     }
 }`
@@ -182,25 +189,27 @@ class Solution {
       constraints: ["Expected Time Complexity: O(n log n)"],
       starterCode: {
         python: `def merge(intervals: list[list[int]]) -> list[list[int]]:
-    # TODO: Implement interval merge algorithm
+    # Write your code here
     return []`,
-        cpp: `#include <vector>
+        cpp: `#include <iostream>
+#include <vector>
 #include <algorithm>
 using namespace std;
 
 vector<vector<int>> merge(vector<vector<int>>& intervals) {
-    // TODO: Implement interval merge algorithm
+    // Write your code here
     return {};
 }`,
         javascript: `function merge(intervals) {
-    // TODO: Implement interval merge algorithm
+    // Write your code here
     return [];
 }`,
-        java: `import java.util.*;
+        java: `import java.io.*;
+import java.util.*;
 
 class Solution {
     public int[][] merge(int[][] intervals) {
-        // TODO: Implement interval merge algorithm
+        // Write your code here
         return new int[][]{};
     }
 }`
@@ -224,23 +233,27 @@ class Solution {
       constraints: ["Expected Time Complexity: O(n)", "Expected Space Complexity: O(1)"],
       starterCode: {
         python: `def trap(height: list[int]) -> int:
-    # TODO: Implement optimal two-pointer water trapping algorithm
+    # Write your code here
     return 0`,
-        cpp: `#include <vector>
+        cpp: `#include <iostream>
+#include <vector>
 #include <algorithm>
 using namespace std;
 
 int trap(vector<int>& height) {
-    // TODO: Implement optimal two-pointer water trapping algorithm
+    // Write your code here
     return 0;
 }`,
         javascript: `function trap(height) {
-    // TODO: Implement optimal two-pointer water trapping algorithm
+    // Write your code here
     return 0;
 }`,
-        java: `class Solution {
+        java: `import java.io.*;
+import java.util.*;
+
+class Solution {
     public int trap(int[] height) {
-        // TODO: Implement optimal two-pointer water trapping algorithm
+        // Write your code here
         return 0;
     }
 }`
@@ -265,23 +278,27 @@ int trap(vector<int>& height) {
       constraints: ["Expected Time Complexity: O(n)"],
       starterCode: {
         python: `def missingNumber(nums: list[int]) -> int:
-    # TODO: Calculate missing number in O(n) time
+    # Write your code here
     return 0`,
-        cpp: `#include <vector>
+        cpp: `#include <iostream>
+#include <vector>
 #include <numeric>
 using namespace std;
 
 int missingNumber(vector<int>& nums) {
-    // TODO: Calculate missing number in O(n) time
+    // Write your code here
     return 0;
 }`,
         javascript: `function missingNumber(nums) {
-    // TODO: Calculate missing number in O(n) time
+    // Write your code here
     return 0;
 }`,
-        java: `class Solution {
+        java: `import java.io.*;
+import java.util.*;
+
+class Solution {
     public int missingNumber(int[] nums) {
-        // TODO: Calculate missing number in O(n) time
+        // Write your code here
         return 0;
     }
 }`
@@ -300,26 +317,27 @@ int missingNumber(vector<int>& nums) {
       constraints: ["Expected Time Complexity: O(n log k)"],
       starterCode: {
         python: `def topKFrequent(nums: list[int], k: int) -> list[int]:
-    # TODO: Return top k frequent elements
+    # Write your code here
     return []`,
-        cpp: `#include <vector>
-#include <unordered_map>
-#include <queue>
+        cpp: `#include <iostream>
+#include <vector>
+#include <algorithm>
 using namespace std;
 
 vector<int> topKFrequent(vector<int>& nums, int k) {
-    // TODO: Return top k frequent elements
+    // Write your code here
     return {};
 }`,
         javascript: `function topKFrequent(nums, k) {
-    // TODO: Return top k frequent elements
+    // Write your code here
     return [];
 }`,
-        java: `import java.util.*;
+        java: `import java.io.*;
+import java.util.*;
 
 class Solution {
     public int[] topKFrequent(int[] nums, int k) {
-        // TODO: Return top k frequent elements
+        // Write your code here
         return new int[]{};
     }
 }`
@@ -338,27 +356,28 @@ class Solution {
       constraints: ["Expected Time Complexity: O(n * k log k)"],
       starterCode: {
         python: `def groupAnagrams(strs: list[str]) -> list[list[str]]:
-    # TODO: Group anagrams using hash map
+    # Write your code here
     return []`,
-        cpp: `#include <vector>
+        cpp: `#include <iostream>
+#include <vector>
 #include <string>
-#include <unordered_map>
 #include <algorithm>
 using namespace std;
 
 vector<vector<string>> groupAnagrams(vector<string>& strs) {
-    // TODO: Group anagrams using hash map
+    // Write your code here
     return {};
 }`,
         javascript: `function groupAnagrams(strs) {
-    // TODO: Group anagrams using hash map
+    // Write your code here
     return [];
 }`,
-        java: `import java.util.*;
+        java: `import java.io.*;
+import java.util.*;
 
 class Solution {
     public List<List<String>> groupAnagrams(String[] strs) {
-        // TODO: Group anagrams using hash map
+        // Write your code here
         return new ArrayList<>();
     }
 }`
@@ -377,22 +396,26 @@ class Solution {
       constraints: ["Expected Time Complexity: O(log(m * n))"],
       starterCode: {
         python: `def searchMatrix(matrix: list[list[int]], target: int) -> bool:
-    # TODO: Implement 2D binary search
+    # Write your code here
     return False`,
-        cpp: `#include <vector>
+        cpp: `#include <iostream>
+#include <vector>
 using namespace std;
 
 bool searchMatrix(vector<vector<int>>& matrix, int target) {
-    // TODO: Implement 2D binary search
+    // Write your code here
     return false;
 }`,
         javascript: `function searchMatrix(matrix, target) {
-    // TODO: Implement 2D binary search
+    // Write your code here
     return false;
 }`,
-        java: `class Solution {
+        java: `import java.io.*;
+import java.util.*;
+
+class Solution {
     public boolean searchMatrix(int[][] matrix, int target) {
-        // TODO: Implement 2D binary search
+        // Write your code here
         return false;
     }
 }`
@@ -411,25 +434,27 @@ bool searchMatrix(vector<vector<int>>& matrix, int target) {
       constraints: ["Expected Time Complexity: O(n)"],
       starterCode: {
         python: `def subarraySum(nums: list[int], k: int) -> int:
-    # TODO: Implement prefix sums with hash map
+    # Write your code here
     return 0`,
-        cpp: `#include <vector>
-#include <unordered_map>
+        cpp: `#include <iostream>
+#include <vector>
+#include <algorithm>
 using namespace std;
 
 int subarraySum(vector<int>& nums, int k) {
-    // TODO: Implement prefix sums with hash map
+    // Write your code here
     return 0;
 }`,
         javascript: `function subarraySum(nums, k) {
-    // TODO: Implement prefix sums with hash map
+    // Write your code here
     return 0;
 }`,
-        java: `import java.util.HashMap;
+        java: `import java.io.*;
+import java.util.*;
 
 class Solution {
     public int subarraySum(int[] nums, int k) {
-        // TODO: Implement prefix sums with hash map
+        // Write your code here
         return 0;
     }
 }`
