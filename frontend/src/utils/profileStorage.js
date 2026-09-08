@@ -1,10 +1,13 @@
 /**
  * Candidate Profile & Test History Storage Manager
  * Uses browser localStorage with zero-friction unique handle management.
- * Enforces a strict 25-test FIFO circular history per candidate profile.
+ * Synchronizes with Firebase Cloud Firestore + FastAPI SQLite Backend.
  */
 
-export const MAX_HISTORY_LIMIT = 25;
+import { saveProfileToCloud, saveTestResultToCloud } from "../services/cloudStorage";
+import { getApiBaseUrl } from "../services/adminApi";
+
+export const MAX_HISTORY_LIMIT = 50;
 
 const PROFILES_KEY = "ai_interview_profiles";
 const ACTIVE_USER_KEY = "ai_interview_active_user";
@@ -66,12 +69,14 @@ export function saveProfile(profileData) {
     console.error("Error saving profile:", err);
   }
 
-  // Async sync to backend SQLite database
+  // 1. Permanent Cloud Firestore Sync
   try {
-    const apiBase = (typeof window !== "undefined" && window.location && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"))
-      ? `http://${window.location.hostname}:8000`
-      : "http://127.0.0.1:8000";
+    saveProfileToCloud(updatedProfile);
+  } catch (e) {}
 
+  // 2. Async sync to backend SQLite database
+  try {
+    const apiBase = getApiBaseUrl();
     fetch(`${apiBase}/api/users/profile`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -82,7 +87,7 @@ export function saveProfile(profileData) {
         year: updatedProfile.year,
         role: updatedProfile.role
       })
-    }).catch((e) => console.warn("[DB SYNC] User profile sync warning:", e));
+    }).catch((e) => console.warn("[DB SYNC] User profile sync note:", e));
   } catch (e) {}
 
   return updatedProfile;
@@ -139,7 +144,7 @@ export function generateSuggestedUserIds(name = "candidate", branch = "cse") {
 }
 
 /**
- * Get test history array for a user (Max 25 tests)
+ * Get test history array for a user
  * @param {string} userId
  * @returns {Array<any>}
  */
@@ -156,8 +161,8 @@ export function getUserHistory(userId) {
 }
 
 /**
- * Save a completed test result into candidate's history
- * Automatically enforces FIFO max 25 tests limit
+ * Save a completed test result into candidate's history & Cloud Database
+ * Enforces multi-device cloud persistence + local speed
  * @param {string} userId
  * @param {object} testPayload
  */
@@ -210,7 +215,6 @@ export function saveTestResult(userId, testPayload) {
   // Append new test
   history.push(newTestRecord);
 
-  // Enforce Max 25 FIFO Limit (Retain latest 25 tests)
   let trimmedHistory = history;
   if (trimmedHistory.length > MAX_HISTORY_LIMIT) {
     trimmedHistory = trimmedHistory.slice(-MAX_HISTORY_LIMIT);
@@ -242,12 +246,22 @@ export function saveTestResult(userId, testPayload) {
     console.error("Error saving test result to localStorage:", err);
   }
 
-  // Async sync interview result to backend SQLite database
+  // 1. Permanent Cloud Firestore Sync (Multi-Device & Counter)
   try {
-    const apiBase = (typeof window !== "undefined" && window.location && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"))
-      ? `http://${window.location.hostname}:8000`
-      : "http://127.0.0.1:8000";
+    saveTestResultToCloud(cleanId, {
+      ...newTestRecord,
+      name: testPayload.name || "Candidate",
+      branch: testPayload.branch || "CSE",
+      year: testPayload.year || "3rd Year",
+      role: testPayload.role || "Software Engineer"
+    });
+  } catch (e) {
+    console.warn("[CLOUD SYNC] Cloud save note:", e);
+  }
 
+  // 2. Async sync interview result to backend SQLite database
+  try {
+    const apiBase = getApiBaseUrl();
     fetch(`${apiBase}/api/interviews/record`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -266,7 +280,7 @@ export function saveTestResult(userId, testPayload) {
         tabSwitches: testPayload.tabSwitches || 0,
         dateIso: nowIso
       })
-    }).catch((e) => console.warn("[DB SYNC] Interview record sync warning:", e));
+    }).catch((e) => console.warn("[DB SYNC] Interview record sync note:", e));
   } catch (e) {}
 
   return newTestRecord;
@@ -286,7 +300,6 @@ export function deleteTest(userId, testId) {
   try {
     localStorage.setItem(`${HISTORY_PREFIX}${cleanId}`, JSON.stringify(updatedHistory));
 
-    // Update profile aggregates
     const scores = updatedHistory.map((t) => t.overallScore);
     const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
     const profile = getProfile(cleanId);
@@ -360,7 +373,7 @@ export function computeAggregatedStats(history = []) {
     avgComm[k] = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
   });
 
-  // Weaknesses aggregator (frequency counter across all tests)
+  // Weaknesses aggregator
   const weaknessFreq = {};
   history.forEach((t) => {
     if (t.topicsToRevise && Array.isArray(t.topicsToRevise)) {
@@ -429,7 +442,6 @@ export function compareTwoTests(testA, testB) {
 
   const scoreDiff = (testB.overallScore || 0) - (testA.overallScore || 0);
 
-  // Radar skills delta
   const radarDiff = [];
   const skillsMapA = {};
   (testA.radarSkills || []).forEach((s) => {
@@ -446,7 +458,6 @@ export function compareTwoTests(testA, testB) {
     });
   });
 
-  // Communication delta
   const commKeys = ["clarity", "relevance", "structure", "conciseness", "vocabulary"];
   const commDiff = {};
   commKeys.forEach((k) => {
@@ -459,7 +470,6 @@ export function compareTwoTests(testA, testB) {
     };
   });
 
-  // Weakness resolved vs persistent
   const weaknessesA = new Set(testA.topicsToRevise || []);
   const weaknessesB = new Set(testB.topicsToRevise || []);
 
@@ -481,14 +491,11 @@ export function compareTwoTests(testA, testB) {
 }
 
 /**
- * Auto-syncs all existing localStorage candidate records to the backend database
+ * Auto-syncs all existing candidate records to Firebase Cloud & Backend Database
  */
 export async function syncAllLocalDataToBackend() {
   try {
-    const apiBase = (typeof window !== "undefined" && window.location && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"))
-      ? `http://${window.location.hostname}:8000`
-      : "http://127.0.0.1:8000";
-
+    const apiBase = getApiBaseUrl();
     const profiles = getAllProfiles();
     const profilesList = Object.values(profiles);
     
@@ -510,7 +517,13 @@ export async function syncAllLocalDataToBackend() {
 
     if (profilesList.length === 0 && allTests.length === 0) return;
 
-    // Try fast batch sync first
+    // 1. Permanent Cloud Firestore Sync
+    try {
+      profilesList.forEach((p) => saveProfileToCloud(p));
+      allTests.forEach((t) => saveTestResultToCloud(t.userId, t));
+    } catch (e) {}
+
+    // 2. Fast batch sync to backend
     try {
       const batchRes = await fetch(`${apiBase}/api/sync/batch`, {
         method: "POST",
@@ -527,14 +540,12 @@ export async function syncAllLocalDataToBackend() {
         })
       });
       if (batchRes.ok) {
-        console.log("[DB SYNC] Batch sync to SQLite database completed successfully.");
+        console.log("[DB SYNC] Batch sync to SQLite database completed.");
         return;
       }
-    } catch (e) {
-      // fallback to sequential sync if batch endpoint failed
-    }
+    } catch (e) {}
 
-    // Fallback individual sync
+    // 3. Fallback sequential sync
     profilesList.forEach((p) => {
       fetch(`${apiBase}/api/users/profile`, {
         method: "POST",
@@ -562,5 +573,5 @@ export async function syncAllLocalDataToBackend() {
 }
 
 if (typeof window !== "undefined") {
-  setTimeout(syncAllLocalDataToBackend, 1500);
+  setTimeout(syncAllLocalDataToBackend, 1200);
 }

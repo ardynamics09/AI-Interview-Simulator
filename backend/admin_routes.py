@@ -829,7 +829,7 @@ def get_recent_tests(
     interview_type: Optional[str] = None,
     min_score: Optional[float] = None,
     max_score: Optional[float] = None,
-    limit: int = 25,
+    limit: int = 1000,
     current_admin: Dict[str, Any] = Depends(get_current_admin)
 ):
     conn = get_db_connection()

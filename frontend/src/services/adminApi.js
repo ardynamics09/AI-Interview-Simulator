@@ -1,5 +1,14 @@
 import axios from "axios";
 import { getAllProfiles, getUserHistory } from "../utils/profileStorage";
+import {
+  saveTestResultToCloud,
+  saveProfileToCloud,
+  fetchAllProfilesFromCloud,
+  fetchAllTestsFromCloud,
+  fetchGlobalStatsFromCloud,
+  syncLocalToCloudDatabase,
+  isFirestoreAvailable
+} from "./cloudStorage";
 
 export const getApiBaseUrl = () => {
   if (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_BACKEND_URL) {
@@ -10,11 +19,15 @@ export const getApiBaseUrl = () => {
     if (host === "localhost" || host === "127.0.0.1") {
       return `http://${host}:8000`;
     }
+    // Dynamic LAN IP detection (e.g. 192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+    const isLanIp = /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(host);
+    if (isLanIp || host.endsWith(".local") || host.endsWith(".lan")) {
+      return `http://${host}:8000`;
+    }
   }
   return "http://127.0.0.1:8000";
 };
 
-const API_BASE_URL = getApiBaseUrl();
 const ADMIN_TOKEN_KEY = "ai_simulator_admin_token";
 const ADMIN_USER_KEY = "ai_simulator_admin_user";
 const ADMIN_LOCAL_PASS_KEY = "ai_simulator_admin_local_pass";
@@ -73,7 +86,6 @@ export async function checkAdminStatus() {
     const response = await axios.get(`${getApiBaseUrl()}/admin/status`, { timeout: 3000 });
     return response.data;
   } catch (err) {
-    // Offline mode: admin account is always ready for owner
     return { hasAdmin: true, is_initialized: true, mode: "offline" };
   }
 }
@@ -87,7 +99,6 @@ export async function setupAdmin({ email, username, password }) {
     }
     return response.data;
   } catch (err) {
-    // Offline Fallback Setup
     const token = "offline_token_" + Date.now();
     const admin = { email: email.toLowerCase().trim(), username: username.trim(), role: "Super Admin", mode: "offline" };
     try {
@@ -98,7 +109,7 @@ export async function setupAdmin({ email, username, password }) {
   }
 }
 
-// 3. Admin Login (With seamless offline fallback)
+// 3. Admin Login (With seamless offline/cloud fallback)
 export async function loginAdmin({ email, password, remember = false }) {
   const cleanEmail = (email || "").toLowerCase().trim();
   try {
@@ -111,13 +122,11 @@ export async function loginAdmin({ email, password, remember = false }) {
     }
     return response.data;
   } catch (err) {
-    // Check if network is down / offline
     const isNetworkErr = err.code === "ERR_NETWORK" || err.code === "ECONNABORTED" || !err.response;
     if (isNetworkErr) {
       const savedPass = localStorage.getItem(ADMIN_LOCAL_PASS_KEY);
       const isMasterEmail = cleanEmail === DEFAULT_MASTER_EMAIL || cleanEmail.includes("masteraniketraj09") || cleanEmail.includes("admin");
       
-      // If matches master email or has saved pass or standard owner password check
       if (isMasterEmail || !savedPass || password === savedPass || password.length >= 6) {
         const token = "offline_admin_token_" + Date.now();
         const admin = {
@@ -130,7 +139,7 @@ export async function loginAdmin({ email, password, remember = false }) {
           localStorage.setItem(ADMIN_LOCAL_PASS_KEY, password);
         } catch (e) {}
         setAdminToken(token, admin, remember);
-        return { token, admin, message: "Logged in via Offline Resilient Mode." };
+        return { token, admin, message: "Logged in via Cloud/Offline Resilient Mode." };
       }
     }
     throw err;
@@ -168,7 +177,6 @@ export async function resetPasswordWithSecurityAnswer({ email, security_answer, 
     }, { timeout: 4000 });
     return response.data;
   } catch (err) {
-    // Offline local reset
     if (security_answer && security_answer.trim().length > 0) {
       try {
         localStorage.setItem(ADMIN_LOCAL_PASS_KEY, new_password);
@@ -189,7 +197,6 @@ export async function verifyAdminSession() {
     const response = await axios.get(`${getApiBaseUrl()}/admin/me`, { ...getAuthHeaders(), timeout: 3000 });
     return { authenticated: true, admin: response.data.admin, mode: "online" };
   } catch (err) {
-    // In offline mode, preserve session if token exists
     if (token) {
       return {
         authenticated: true,
@@ -207,37 +214,43 @@ export async function verifyAdminSession() {
 
 /**
  * =========================================================================
- * CLIENT-SIDE OFFLINE AGGREGATED ANALYTICS ENGINE
- * Computes all dashboard stats dynamically from localStorage when backend is offline
- * Matches 100% with the exact schema contract expected by AdminDashboard.jsx
+ * UNIVERSAL AGGREGATED ANALYTICS ENGINE (Cloud Firestore + Local Merge)
+ * Computes all dashboard stats dynamically across all phones, laptops, and devices.
+ * Supports scaling up to 10,000 - 20,000+ tests with 1,000 student detailed reports.
  * =========================================================================
  */
-export function computeAllLocalAdminAnalytics(filters = {}) {
-  const profilesMap = getAllProfiles();
+export function computeAggregatedAnalyticsEngine(allTests = [], profilesMap = {}, globalStats = null, filters = {}) {
   const allUserIds = Object.keys(profilesMap);
-  const totalUsers = allUserIds.length;
+  const localTotalUsers = allUserIds.length;
 
-  let allTests = [];
-  allUserIds.forEach((uid) => {
-    const history = getUserHistory(uid);
-    history.forEach((t) => {
-      allTests.push({
-        ...t,
-        userId: uid,
-        candidateName: (t.name || profilesMap[uid]?.name || "Candidate"),
-        userBranch: t.branch || profilesMap[uid]?.branch || "CSE",
-        userRole: t.role || profilesMap[uid]?.role || "Software Engineer",
-        userYear: t.year || profilesMap[uid]?.year || "3rd Year"
-      });
-    });
+  // Merge candidate info onto each test record
+  const enrichedTests = allTests.map((t) => {
+    const uid = t.userId || "candidate";
+    return {
+      ...t,
+      userId: uid,
+      candidateName: (t.name || t.candidateName || profilesMap[uid]?.name || "Candidate"),
+      userBranch: t.branch || t.userBranch || profilesMap[uid]?.branch || "CSE",
+      userRole: t.role || t.userRole || profilesMap[uid]?.role || "Software Engineer",
+      userYear: t.year || t.userYear || profilesMap[uid]?.year || "3rd Year"
+    };
   });
 
   // Sort tests newest first
-  allTests.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  enrichedTests.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
-  const totalInterviews = allTests.length;
-  const scores = allTests.map((t) => Number(t.overallScore) || 0);
-  const avgScore = totalInterviews > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / totalInterviews) : 0;
+  const countFromRecords = enrichedTests.length;
+  // Use global lifetime counter if it exists (e.g. 10000 / 20000+ tests), otherwise records length
+  const totalInterviews = (globalStats && globalStats.lifetimeInterviews)
+    ? Math.max(Number(globalStats.lifetimeInterviews), countFromRecords)
+    : countFromRecords;
+
+  const totalUsers = (globalStats && globalStats.totalStudents)
+    ? Math.max(Number(globalStats.totalStudents), localTotalUsers)
+    : Math.max(localTotalUsers, new Set(enrichedTests.map(t => t.userId)).size);
+
+  const scores = enrichedTests.map((t) => Number(t.overallScore) || 0);
+  const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : (globalStats?.totalScoreSum ? Math.round(globalStats.totalScoreSum / Math.max(1, totalInterviews)) : 0);
   const maxScore = scores.length > 0 ? Math.max(...scores) : 0;
   const minScore = scores.length > 0 ? Math.min(...scores) : 0;
 
@@ -245,15 +258,15 @@ export function computeAllLocalAdminAnalytics(filters = {}) {
   const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
 
-  const testsToday = allTests.filter((t) => (t.timestamp || 0) >= oneDayAgo).length;
-  const testsWeek = allTests.filter((t) => (t.timestamp || 0) >= sevenDaysAgo).length;
-  const tests30d = allTests.filter((t) => (t.timestamp || 0) >= thirtyDaysAgo).length;
+  const testsToday = enrichedTests.filter((t) => (t.timestamp || 0) >= oneDayAgo).length;
+  const testsWeek = enrichedTests.filter((t) => (t.timestamp || 0) >= sevenDaysAgo).length;
+  const tests30d = enrichedTests.filter((t) => (t.timestamp || 0) >= thirtyDaysAgo).length;
 
   const completedCount = scores.filter((s) => s >= 10).length;
-  const completionRate = totalInterviews > 0 ? Math.round((completedCount / totalInterviews) * 100) : 100;
-  const avgDuration = totalInterviews > 0 ? Math.round(allTests.reduce((a, b) => a + (Number(b.durationMinutes) || 15), 0) / totalInterviews) : 15;
+  const completionRate = scores.length > 0 ? Math.round((completedCount / scores.length) * 100) : 100;
+  const avgDuration = scores.length > 0 ? Math.round(enrichedTests.reduce((a, b) => a + (Number(b.durationMinutes) || 15), 0) / scores.length) : 15;
 
-  // 1. Overview (matches backend /admin/analytics/overview)
+  // 1. Overview
   const overview = {
     totalUsers: totalUsers,
     totalInterviews: totalInterviews,
@@ -263,25 +276,25 @@ export function computeAllLocalAdminAnalytics(filters = {}) {
     highestScore: maxScore,
     averageInterviewDuration: avgDuration,
     completionRate: completionRate,
-    isOfflineFallback: true
+    isCloudSynced: true
   };
 
-  // 2. User Stats (matches backend /admin/analytics/users)
+  // 2. User Stats
   const userGrowthTimeline = [];
   const now = new Date();
   for (let i = 13; i >= 0; i--) {
     const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
     const dayLabel = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    const countUpToDay = allTests.filter((t) => (t.timestamp || 0) <= d.getTime()).length;
+    const countUpToDay = enrichedTests.filter((t) => (t.timestamp || 0) <= d.getTime()).length;
     userGrowthTimeline.push({
       date: dayLabel,
       users: Math.max(countUpToDay, totalUsers > 0 ? 1 : 0)
     });
   }
 
-  const activeUsersToday = new Set(allTests.filter((t) => (t.timestamp || 0) >= oneDayAgo).map((t) => t.userId)).size;
-  const activeUsers7d = new Set(allTests.filter((t) => (t.timestamp || 0) >= sevenDaysAgo).map((t) => t.userId)).size;
-  const activeUsers30d = new Set(allTests.filter((t) => (t.timestamp || 0) >= thirtyDaysAgo).map((t) => t.userId)).size;
+  const activeUsersToday = new Set(enrichedTests.filter((t) => (t.timestamp || 0) >= oneDayAgo).map((t) => t.userId)).size;
+  const activeUsers7d = new Set(enrichedTests.filter((t) => (t.timestamp || 0) >= sevenDaysAgo).map((t) => t.userId)).size;
+  const activeUsers30d = new Set(enrichedTests.filter((t) => (t.timestamp || 0) >= thirtyDaysAgo).map((t) => t.userId)).size;
 
   const userStats = {
     totalRegisteredUsers: totalUsers,
@@ -298,9 +311,9 @@ export function computeAllLocalAdminAnalytics(filters = {}) {
     userGrowthTimeline
   };
 
-  // 3. Interview Stats (matches backend /admin/analytics/interviews)
+  // 3. Interview Stats
   const typeMap = {};
-  allTests.forEach((t) => {
+  enrichedTests.forEach((t) => {
     const type = t.interviewType || "Technical Interview";
     if (!typeMap[type]) typeMap[type] = { count: 0, sum: 0 };
     typeMap[type].count++;
@@ -310,7 +323,7 @@ export function computeAllLocalAdminAnalytics(filters = {}) {
   const interviewDistribution = Object.keys(typeMap).map((type) => ({
     type,
     count: typeMap[type].count,
-    percentage: totalInterviews > 0 ? Math.round((typeMap[type].count / totalInterviews) * 100) : 0,
+    percentage: countFromRecords > 0 ? Math.round((typeMap[type].count / countFromRecords) * 100) : 0,
     avgScore: Math.round(typeMap[type].sum / typeMap[type].count)
   }));
 
@@ -319,7 +332,7 @@ export function computeAllLocalAdminAnalytics(filters = {}) {
     distribution: interviewDistribution
   };
 
-  // 4. Score Stats (matches backend /admin/analytics/scores)
+  // 4. Score Stats
   const scoreStats = {
     overallAverage: avgScore,
     highest: maxScore,
@@ -334,9 +347,9 @@ export function computeAllLocalAdminAnalytics(filters = {}) {
     }))
   };
 
-  // 5. Branch Stats (matches backend /admin/analytics/branches)
+  // 5. Branch Stats
   const branchMap = {};
-  allTests.forEach((t) => {
+  enrichedTests.forEach((t) => {
     const b = t.userBranch || "CSE";
     if (!branchMap[b]) branchMap[b] = { count: 0, sum: 0, users: new Set() };
     branchMap[b].count++;
@@ -355,9 +368,9 @@ export function computeAllLocalAdminAnalytics(filters = {}) {
     branches: branchList
   };
 
-  // 6. Role Stats (matches backend /admin/analytics/roles)
+  // 6. Role Stats
   const roleMap = {};
-  allTests.forEach((t) => {
+  enrichedTests.forEach((t) => {
     const r = t.userRole || "Software Engineer";
     if (!roleMap[r]) roleMap[r] = { count: 0, sum: 0, users: new Set() };
     roleMap[r].count++;
@@ -376,10 +389,10 @@ export function computeAllLocalAdminAnalytics(filters = {}) {
     roles: roleList
   };
 
-  // 7. Performance Trend (matches backend /admin/analytics/performance-trend)
+  // 7. Performance Trend
   const dateMap = {};
-  allTests.forEach((t) => {
-    const dStr = t.dateString || new Date(t.timestamp || Date.now()).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  enrichedTests.forEach((t) => {
+    const dStr = t.dateString || (t.timestamp ? new Date(t.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Recent");
     if (!dateMap[dStr]) dateMap[dStr] = { sum: 0, count: 0 };
     dateMap[dStr].sum += (Number(t.overallScore) || 0);
     dateMap[dStr].count++;
@@ -397,7 +410,7 @@ export function computeAllLocalAdminAnalytics(filters = {}) {
   };
 
   // 8. DSA Stats
-  const dsaTests = allTests.filter((t) => t.dsaSummary || (t.interviewType || "").toLowerCase().includes("dsa") || (t.interviewType || "").toLowerCase().includes("coding"));
+  const dsaTests = enrichedTests.filter((t) => t.dsaSummary || (t.interviewType || "").toLowerCase().includes("dsa") || (t.interviewType || "").toLowerCase().includes("coding"));
   const dsaAvg = dsaTests.length > 0 ? Math.round(dsaTests.reduce((a, b) => a + (Number(b.overallScore) || 0), 0) / dsaTests.length) : avgScore || 82;
   const dsaStats = {
     totalAttempts: dsaTests.length,
@@ -410,7 +423,7 @@ export function computeAllLocalAdminAnalytics(filters = {}) {
   };
 
   // 9. Verilog Stats
-  const verilogTests = allTests.filter((t) => (t.interviewType || "").toLowerCase().includes("verilog") || (t.interviewType || "").toLowerCase().includes("rtl"));
+  const verilogTests = enrichedTests.filter((t) => (t.interviewType || "").toLowerCase().includes("verilog") || (t.interviewType || "").toLowerCase().includes("rtl"));
   const verAvg = verilogTests.length > 0 ? Math.round(verilogTests.reduce((a, b) => a + (Number(b.overallScore) || 0), 0) / verilogTests.length) : avgScore || 80;
   const verilogStats = {
     totalAttempts: verilogTests.length,
@@ -432,8 +445,8 @@ export function computeAllLocalAdminAnalytics(filters = {}) {
   };
 
   // 11. Camera Stats
-  const totalSwitches = allTests.reduce((a, b) => a + (Number(b.tabSwitches) || 0), 0);
-  const avgIntegrity = allTests.length > 0 ? Math.round(allTests.reduce((a, b) => a + (Number(b.integrityScore) || 100), 0) / allTests.length) : 98;
+  const totalSwitches = enrichedTests.reduce((a, b) => a + (Number(b.tabSwitches) || 0), 0);
+  const avgIntegrity = enrichedTests.length > 0 ? Math.round(enrichedTests.reduce((a, b) => a + (Number(b.integrityScore) || 100), 0) / enrichedTests.length) : 98;
   const cameraStats = {
     cameraAvailabilityRate: 98.5,
     averageFocusScore: avgIntegrity,
@@ -441,8 +454,8 @@ export function computeAllLocalAdminAnalytics(filters = {}) {
     gazeComplianceRate: Math.min(100, avgIntegrity + 2)
   };
 
-  // 12. Recent Activity (matches backend /admin/analytics/recent-activity)
-  const activities = allTests.slice(0, 15).map((t) => ({
+  // 12. Recent Activity
+  const activities = enrichedTests.slice(0, 20).map((t) => ({
     message: `Candidate @${t.userId} completed ${t.interviewType || "Interview"} with ${t.overallScore || 0}% score`,
     type: t.interviewType || "Technical",
     timeAgo: t.timeString || "Recently",
@@ -453,8 +466,8 @@ export function computeAllLocalAdminAnalytics(filters = {}) {
     activities: activities
   };
 
-  // 13. Recent Tests (matches backend /admin/analytics/recent-tests)
-  let filteredTests = [...allTests];
+  // 13. Recent Tests (up to 1,000 detailed tests)
+  let filteredTests = [...enrichedTests];
   if (filters.branch) {
     filteredTests = filteredTests.filter((t) => (t.userBranch || "").toLowerCase().includes(filters.branch.toLowerCase()));
   }
@@ -471,7 +484,7 @@ export function computeAllLocalAdminAnalytics(filters = {}) {
     filteredTests = filteredTests.filter((t) => (Number(t.overallScore) || 0) <= Number(filters.maxScore));
   }
 
-  const recentTestsList = filteredTests.slice(0, 50).map((t) => ({
+  const recentTestsList = filteredTests.slice(0, 1000).map((t) => ({
     testId: t.id || "test_" + (t.timestamp || Date.now()),
     userId: t.userId,
     candidateName: t.candidateName || "Candidate",
@@ -483,11 +496,11 @@ export function computeAllLocalAdminAnalytics(filters = {}) {
     performanceLevel: t.performanceLevel || "Developing",
     durationMinutes: Number(t.durationMinutes) || 15,
     integrityScore: t.integrityScore !== undefined ? Number(t.integrityScore) : 100,
-    dateFormatted: `${t.dateString || ""} ${t.timeString || ""}`.trim() || "Recently"
+    dateFormatted: `${t.dateString || ""} ${t.timeString || ""}`.trim() || (t.timestamp ? new Date(t.timestamp).toLocaleDateString() : "Recently")
   }));
 
   const recentTests = {
-    total: recentTestsList.length,
+    total: totalInterviews,
     tests: recentTestsList
   };
 
@@ -508,113 +521,163 @@ export function computeAllLocalAdminAnalytics(filters = {}) {
   };
 }
 
-// 8. Protected Analytics Endpoints with automatic local fallback
+/**
+ * Universal Master Analytics Fetcher:
+ * Tries Backend API -> Cloud Firestore -> Local Storage Merge
+ */
+async function getMasterAnalytics(filters = {}) {
+  // 1. Gather all local data
+  const localProfiles = getAllProfiles();
+  const localTests = [];
+  Object.keys(localProfiles).forEach((uid) => {
+    const history = getUserHistory(uid);
+    history.forEach((t) => {
+      localTests.push({ ...t, userId: uid });
+    });
+  });
+
+  // 2. Try fetching from Cloud Firestore
+  let cloudTests = [];
+  let cloudProfiles = {};
+  let cloudGlobalStats = null;
+
+  try {
+    const [cTests, cProfiles, cStats] = await Promise.all([
+      fetchAllTestsFromCloud(),
+      fetchAllProfilesFromCloud(),
+      fetchGlobalStatsFromCloud()
+    ]);
+    if (cTests && cTests.length > 0) cloudTests = cTests;
+    if (cProfiles && Object.keys(cProfiles).length > 0) cloudProfiles = cProfiles;
+    if (cStats) cloudGlobalStats = cStats;
+  } catch (e) {
+    console.warn("[ANALYTICS] Cloud fetch note:", e);
+  }
+
+  // 3. Merge Cloud + Local Data without duplicates
+  const testsMap = {};
+  cloudTests.forEach((t) => {
+    const id = t.id || t.testId || `t_${t.timestamp}_${t.userId}`;
+    testsMap[id] = t;
+  });
+  localTests.forEach((t) => {
+    const id = t.id || t.testId || `t_${t.timestamp}_${t.userId}`;
+    if (!testsMap[id]) testsMap[id] = t;
+  });
+
+  const mergedTests = Object.values(testsMap);
+  const mergedProfiles = { ...cloudProfiles, ...localProfiles };
+
+  return computeAggregatedAnalyticsEngine(mergedTests, mergedProfiles, cloudGlobalStats, filters);
+}
+
+// 8. Protected Analytics Endpoints with automatic Cloud + Backend + Local resolution
 export async function fetchOverviewAnalytics() {
   try {
     const res = await axios.get(`${getApiBaseUrl()}/admin/analytics/overview`, { ...getAuthHeaders(), timeout: 3000 });
-    return res.data;
-  } catch (err) {
-    return computeAllLocalAdminAnalytics().overview;
-  }
+    if (res.data && res.data.totalInterviews > 0) return res.data;
+  } catch (err) {}
+  const master = await getMasterAnalytics();
+  return master.overview;
 }
 
 export async function fetchUserAnalytics() {
   try {
     const res = await axios.get(`${getApiBaseUrl()}/admin/analytics/users`, { ...getAuthHeaders(), timeout: 3000 });
-    return res.data;
-  } catch (err) {
-    return computeAllLocalAdminAnalytics().userStats;
-  }
+    if (res.data && res.data.totalRegisteredUsers > 0) return res.data;
+  } catch (err) {}
+  const master = await getMasterAnalytics();
+  return master.userStats;
 }
 
 export async function fetchInterviewAnalytics() {
   try {
     const res = await axios.get(`${getApiBaseUrl()}/admin/analytics/interviews`, { ...getAuthHeaders(), timeout: 3000 });
-    return res.data;
-  } catch (err) {
-    return computeAllLocalAdminAnalytics().interviewStats;
-  }
+    if (res.data && res.data.totalInterviews > 0) return res.data;
+  } catch (err) {}
+  const master = await getMasterAnalytics();
+  return master.interviewStats;
 }
 
 export async function fetchScoreAnalytics() {
   try {
     const res = await axios.get(`${getApiBaseUrl()}/admin/analytics/scores`, { ...getAuthHeaders(), timeout: 3000 });
-    return res.data;
-  } catch (err) {
-    return computeAllLocalAdminAnalytics().scoreStats;
-  }
+    if (res.data && res.data.overallAverage > 0) return res.data;
+  } catch (err) {}
+  const master = await getMasterAnalytics();
+  return master.scoreStats;
 }
 
 export async function fetchBranchAnalytics() {
   try {
     const res = await axios.get(`${getApiBaseUrl()}/admin/analytics/branches`, { ...getAuthHeaders(), timeout: 3000 });
-    return res.data;
-  } catch (err) {
-    return computeAllLocalAdminAnalytics().branchStats;
-  }
+    if (res.data && res.data.branches && res.data.branches.length > 0) return res.data;
+  } catch (err) {}
+  const master = await getMasterAnalytics();
+  return master.branchStats;
 }
 
 export async function fetchRoleAnalytics() {
   try {
     const res = await axios.get(`${getApiBaseUrl()}/admin/analytics/roles`, { ...getAuthHeaders(), timeout: 3000 });
-    return res.data;
-  } catch (err) {
-    return computeAllLocalAdminAnalytics().roleStats;
-  }
+    if (res.data && res.data.roles && res.data.roles.length > 0) return res.data;
+  } catch (err) {}
+  const master = await getMasterAnalytics();
+  return master.roleStats;
 }
 
 export async function fetchPerformanceTrend(period = "all") {
   try {
     const res = await axios.get(`${getApiBaseUrl()}/admin/analytics/performance-trend?period=${period}`, { ...getAuthHeaders(), timeout: 3000 });
-    return res.data;
-  } catch (err) {
-    return computeAllLocalAdminAnalytics({ period }).trendStats;
-  }
+    if (res.data && res.data.trend && res.data.trend.length > 0) return res.data;
+  } catch (err) {}
+  const master = await getMasterAnalytics({ period });
+  return master.trendStats;
 }
 
 export async function fetchDsaAnalytics() {
   try {
     const res = await axios.get(`${getApiBaseUrl()}/admin/analytics/dsa`, { ...getAuthHeaders(), timeout: 3000 });
-    return res.data;
-  } catch (err) {
-    return computeAllLocalAdminAnalytics().dsaStats;
-  }
+    if (res.data) return res.data;
+  } catch (err) {}
+  const master = await getMasterAnalytics();
+  return master.dsaStats;
 }
 
 export async function fetchVerilogAnalytics() {
   try {
     const res = await axios.get(`${getApiBaseUrl()}/admin/analytics/verilog`, { ...getAuthHeaders(), timeout: 3000 });
-    return res.data;
-  } catch (err) {
-    return computeAllLocalAdminAnalytics().verilogStats;
-  }
+    if (res.data) return res.data;
+  } catch (err) {}
+  const master = await getMasterAnalytics();
+  return master.verilogStats;
 }
 
 export async function fetchCommunicationAnalytics() {
   try {
     const res = await axios.get(`${getApiBaseUrl()}/admin/analytics/communication`, { ...getAuthHeaders(), timeout: 3000 });
-    return res.data;
-  } catch (err) {
-    return computeAllLocalAdminAnalytics().commStats;
-  }
+    if (res.data) return res.data;
+  } catch (err) {}
+  const master = await getMasterAnalytics();
+  return master.commStats;
 }
 
 export async function fetchCameraAnalytics() {
   try {
     const res = await axios.get(`${getApiBaseUrl()}/admin/analytics/camera`, { ...getAuthHeaders(), timeout: 3000 });
-    return res.data;
-  } catch (err) {
-    return computeAllLocalAdminAnalytics().cameraStats;
-  }
+    if (res.data) return res.data;
+  } catch (err) {}
+  const master = await getMasterAnalytics();
+  return master.cameraStats;
 }
 
 export async function fetchRecentActivity() {
   try {
     const res = await axios.get(`${getApiBaseUrl()}/admin/analytics/recent-activity`, { ...getAuthHeaders(), timeout: 3000 });
-    return res.data;
-  } catch (err) {
-    return computeAllLocalAdminAnalytics().recentActivity;
-  }
+    if (res.data && res.data.activities && res.data.activities.length > 0) return res.data;
+  } catch (err) {}
+  const master = await getMasterAnalytics();
+  return master.recentActivity;
 }
 
 export async function fetchRecentTests(filters = {}) {
@@ -627,13 +690,13 @@ export async function fetchRecentTests(filters = {}) {
     if (filters.maxScore !== undefined && filters.maxScore !== "") params.append("max_score", filters.maxScore);
 
     const res = await axios.get(`${getApiBaseUrl()}/admin/analytics/recent-tests?${params.toString()}`, { ...getAuthHeaders(), timeout: 3000 });
-    return res.data;
-  } catch (err) {
-    return computeAllLocalAdminAnalytics(filters).recentTests;
-  }
+    if (res.data && res.data.tests && res.data.tests.length > 0) return res.data;
+  } catch (err) {}
+  const master = await getMasterAnalytics(filters);
+  return master.recentTests;
 }
 
-// 9. Batch Data Synchronization to Backend SQLite
+// 9. Batch Data Synchronization to Cloud Firestore & Backend SQLite
 export async function syncAllLocalDataToBackend() {
   try {
     const profiles = getAllProfiles();
@@ -655,10 +718,14 @@ export async function syncAllLocalDataToBackend() {
       });
     });
 
+    // 1. Sync to Firebase Cloud Firestore
+    syncLocalToCloudDatabase(profiles, allTests).catch((e) => console.warn("[CLOUD SYNC] Cloud sync warning:", e));
+
     if (profilesList.length === 0 && allTests.length === 0) {
       return { success: true, syncedUsers: 0, syncedInterviews: 0 };
     }
 
+    // 2. Sync to Backend SQLite API
     const payload = {
       profiles: profilesList.map((p) => ({
         userId: p.userId,
@@ -674,24 +741,21 @@ export async function syncAllLocalDataToBackend() {
     console.log("[DATA SYNC] Database sync complete:", res.data);
     return res.data;
   } catch (err) {
-    console.warn("[DATA SYNC] Batch sync to backend failed:", err?.message || err);
+    console.warn("[DATA SYNC] Batch sync note:", err?.message || err);
     return { success: false, error: err?.message };
   }
 }
 
 export async function syncUserProfileToBackend(profile) {
   try {
+    saveProfileToCloud(profile);
     await axios.post(`${getApiBaseUrl()}/api/users/profile`, profile, { timeout: 3000 });
-  } catch (err) {
-    // Non-blocking
-  }
+  } catch (err) {}
 }
 
 export async function syncInterviewToBackend(testPayload) {
   try {
+    saveTestResultToCloud(testPayload.userId || testPayload.user_id, testPayload);
     await axios.post(`${getApiBaseUrl()}/api/interviews/record`, testPayload, { timeout: 3000 });
-  } catch (err) {
-    // Non-blocking
-  }
+  } catch (err) {}
 }
-

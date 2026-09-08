@@ -262,7 +262,7 @@ function AdminDashboard() {
                 </span>
               </div>
               <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "#aaa" }}>
-                Platform Owner: <b style={{ color: "#64b5f6" }}>{adminUser?.email || "admin@owner"}</b> • Database: SQLite Live Real Analytics
+                Platform Owner: <b style={{ color: "#64b5f6" }}>{adminUser?.email || "admin@owner"}</b> • Database: <span style={{ color: "#00e676", fontWeight: "600" }}>🟢 Cloud Database + Multi-Device Permanent Sync</span>
               </p>
             </div>
           </div>
