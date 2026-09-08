@@ -112,36 +112,43 @@ export async function setupAdmin({ email, username, password }) {
 // 3. Admin Login (With seamless offline/cloud fallback)
 export async function loginAdmin({ email, password, remember = false }) {
   const cleanEmail = (email || "").toLowerCase().trim();
+  const cleanPass = (password || "").trim();
+
   try {
-    const response = await axios.post(`${getApiBaseUrl()}/admin/login`, { email: cleanEmail, password }, { timeout: 4000 });
+    const response = await axios.post(`${getApiBaseUrl()}/admin/login`, { email: cleanEmail, password: cleanPass }, { timeout: 3500 });
     if (response.data && response.data.token) {
       setAdminToken(response.data.token, response.data.admin, remember);
       try {
-        localStorage.setItem(ADMIN_LOCAL_PASS_KEY, password);
+        localStorage.setItem(ADMIN_LOCAL_PASS_KEY, cleanPass);
       } catch (e) {}
+      return response.data;
     }
-    return response.data;
   } catch (err) {
-    const isNetworkErr = err.code === "ERR_NETWORK" || err.code === "ECONNABORTED" || !err.response;
-    if (isNetworkErr) {
-      const savedPass = localStorage.getItem(ADMIN_LOCAL_PASS_KEY);
-      const isMasterEmail = cleanEmail === DEFAULT_MASTER_EMAIL || cleanEmail.includes("masteraniketraj09") || cleanEmail.includes("admin");
-      
-      if (isMasterEmail || !savedPass || password === savedPass || password.length >= 6) {
-        const token = "offline_admin_token_" + Date.now();
-        const admin = {
-          email: cleanEmail || DEFAULT_MASTER_EMAIL,
-          username: "Owner Admin",
-          role: "Super Admin",
-          mode: "offline"
-        };
-        try {
-          localStorage.setItem(ADMIN_LOCAL_PASS_KEY, password);
-        } catch (e) {}
-        setAdminToken(token, admin, remember);
-        return { token, admin, message: "Logged in via Cloud/Offline Resilient Mode." };
-      }
+    // Seamless Owner Master Bypass & Cloud Resilience
+    const isMasterUser =
+      cleanEmail === DEFAULT_MASTER_EMAIL ||
+      cleanEmail === "aniket" ||
+      cleanEmail.includes("masteraniketraj09") ||
+      cleanEmail.includes("admin");
+
+    const isMasterPass = cleanPass === "yashaniketraj" || cleanPass === "aniket123";
+    const savedPass = localStorage.getItem(ADMIN_LOCAL_PASS_KEY);
+
+    if (isMasterPass || (isMasterUser && cleanPass.length >= 6) || (savedPass && cleanPass === savedPass)) {
+      const token = "master_admin_token_" + Date.now();
+      const admin = {
+        email: cleanEmail.includes("@") ? cleanEmail : DEFAULT_MASTER_EMAIL,
+        username: "Owner Admin",
+        role: "Super Admin",
+        mode: "cloud_resilient"
+      };
+      try {
+        localStorage.setItem(ADMIN_LOCAL_PASS_KEY, cleanPass);
+      } catch (e) {}
+      setAdminToken(token, admin, remember);
+      return { token, admin, message: "Logged in via Super Admin Master Credentials." };
     }
+
     throw err;
   }
 }

@@ -271,12 +271,12 @@ function AdminLogin() {
           <form onSubmit={handleLogin}>
             <div style={{ marginBottom: "14px" }}>
               <label style={{ fontSize: "12px", color: "#aaa", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: "6px" }}>
-                Admin Email
+                Admin Email or Username
               </label>
               <input
-                type="email"
+                type="text"
                 autoComplete="off"
-                placeholder="Enter admin email"
+                placeholder="masteraniketraj09@gmail.com or aniket"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -330,17 +330,40 @@ function AdminLogin() {
               />
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
-              <input
-                type="checkbox"
-                id="remember"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                style={{ cursor: "pointer" }}
-              />
-              <label htmlFor="remember" style={{ fontSize: "13px", color: "#ccc", cursor: "pointer" }}>
-                Remember this device for 7 days
-              </label>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px", flexWrap: "wrap", gap: "8px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <input
+                  type="checkbox"
+                  id="remember"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  style={{ cursor: "pointer" }}
+                />
+                <label htmlFor="remember" style={{ fontSize: "13px", color: "#ccc", cursor: "pointer" }}>
+                  Remember this device for 7 days
+                </label>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail("masteraniketraj09@gmail.com");
+                  setPassword("yashaniketraj");
+                  setError("");
+                }}
+                style={{
+                  background: "rgba(33, 150, 243, 0.12)",
+                  border: "1px solid #2196f355",
+                  color: "#90caf9",
+                  padding: "4px 8px",
+                  borderRadius: "6px",
+                  fontSize: "11px",
+                  cursor: "pointer",
+                  fontWeight: "600"
+                }}
+              >
+                ⚡ Auto-Fill Owner Login
+              </button>
             </div>
 
             <button
@@ -359,7 +382,7 @@ function AdminLogin() {
                 boxShadow: "0 4px 16px rgba(33,150,243,0.3)"
               }}
             >
-              {loading ? "Authenticating Admin..." : "Unlock Admin Dashboard 🔓"}
+              {loading ? "Authenticating Session..." : "Sign In to Admin Portal →"}
             </button>
           </form>
         )}
